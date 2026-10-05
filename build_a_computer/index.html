@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JHN Build a Computer</title>
+
+<style>
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial, sans-serif;
+    background:#0b2341;
+    color:white;
+    margin:0;
+    padding:12px;
+    text-align:center;
+}
+
+.header{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:15px;
+    margin-bottom:8px;
+}
+
+.logo{
+    width:55px;
+    height:auto;
+}
+
+h1{
+    color:#ffffff;
+    margin:0;
+    font-size:1.7rem;
+}
+
+h2{
+    color:#d4af37;
+    margin:2px 0 0 0;
+    font-size:1rem;
+    font-weight:normal;
+}
+
+.instructions{
+    max-width:900px;
+    margin:10px auto;
+    background:#102d52;
+    border:1px solid #d4af37;
+    color:white;
+    padding:10px 16px;
+    border-radius:8px;
+    font-size:0.9rem;
+    text-align:left;
+}
+
+.instructions strong{
+    color:#ffd60a;
+}
+
+.progressWrap{
+    max-width:900px;
+    margin:10px auto;
+}
+
+.progressLabel{
+    font-size:0.85rem;
+    color:#cfe0ff;
+    margin-bottom:4px;
+}
+
+.progressBar{
+    background:#0d1b2a;
+    border:1px solid #3a5686;
+    border-radius:20px;
+    height:18px;
+    overflow:hidden;
+}
+
+.progressFill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#38b000,#70e000);
+    transition:width 0.4s ease;
+}
+
+.buildArea{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:22px;
+    max-width:1100px;
+    margin:16px auto;
+}
+
+.caseOuter{
+    background:#1a2027;
+    border:4px solid #3a4250;
+    border-radius:16px;
+    width:540px;
+    max-width:92vw;
+    aspect-ratio:7/8;
+    position:relative;
+    padding:14px;
+    box-shadow:0 0 25px rgba(0,0,0,0.5);
+}
+
+.caseInner{
+    position:relative;
+    width:100%;
+    height:100%;
+}
+
+.slot{
+    position:absolute;
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slot.empty{
+    background:rgba(255,255,255,0.03);
+}
+
+.slot.selectable:hover{
+    transform:scale(1.04);
+    box-shadow:0 0 0 3px #ffd60a;
+}
+
+.slot.dragover{
+    transform:scale(1.04);
+    box-shadow:0 0 0 3px #ffd60a;
+    background:rgba(255,214,10,0.12);
+}
+
+.slot.filled{
+    border:2px solid #38b000;
+    background:rgba(56,176,0,0.08);
+    cursor:default;
+}
+
+.slot .iconWrap{
+    width:100%;
+    height:100%;
+    padding:6%;
+}
+
+/* The motherboard diagram's own baked-in sockets are placed by maths that
+   assumes the artwork fills the slot edge-to-edge — any padding here would
+   throw that alignment off, so it gets none (the art has its own margin). */
+.slot .iconWrap.noPad{
+    padding:0;
+}
+
+.slot .socketWrap{
+    opacity:0.85;
+}
+
+.dumpZone{
+    position:absolute;
+    inset:0;
+    z-index:0;
+    border-radius:8px;
+    transition:background 0.15s ease;
+}
+
+.dumpZone.dragover{
+    background:rgba(255,255,255,0.04);
+}
+
+/* Power/data cables, drawn once both of a cable's real endpoints are
+   placed. z-index:4 — above every filled/empty slot (max 3) so a cable crossing
+   the gap between two components stays visible the whole way, instead
+   of vanishing behind an opaque slot (the motherboard's own green
+   background, say) before it actually reaches the connector mark drawn
+   on top of that slot. Still below the modal (z-index 50+). */
+.cableOverlay{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:4;
+    pointer-events:none;
+}
+
+.cablePowerOuter{
+    fill:none;
+    stroke:#14181f;
+    stroke-width:3.2;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+}
+
+.cablePowerInner{
+    fill:none;
+    stroke:#ffd60a;
+    stroke-width:1;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    opacity:0.85;
+}
+
+.cableData{
+    fill:none;
+    stroke:#c1121f;
+    stroke-width:1.8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+}
+
+.cableDataHighlight{
+    fill:none;
+    stroke:#ff8577;
+    stroke-width:0.6;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    opacity:0.8;
+}
+
+.looseItem{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    z-index:5;
+    background:rgba(13,27,42,0.6);
+    border:2px dashed #d4af37;
+    border-radius:8px;
+    padding:4px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.looseItem .iconWrap{
+    width:100%;
+    height:100%;
+    opacity:0.9;
+}
+
+@keyframes fanSpin{
+    to{ transform:rotate(360deg); }
+}
+
+@keyframes tracePulse{
+    to{ stroke-dashoffset:-14; }
+}
+
+@keyframes ledPulse{
+    0%, 100%{ opacity:1; }
+    50%{ opacity:0.45; }
+}
+
+.caseOuter.powered .fanBlades{
+    transform-box:fill-box;
+    transform-origin:center;
+    animation:fanSpin 0.5s linear infinite;
+}
+
+.caseOuter.powered .tracePulse{
+    stroke:#ffd60a;
+    stroke-dasharray:4 3;
+    animation:tracePulse 0.6s linear infinite;
+}
+
+/* On power-up, the cables themselves pulse the same way the board's own
+   traces do — same animation, so a cable and the trace it hands off to
+   (the SATA->CPU trace above) visually read as one continuous moving
+   signal rather than a static cable feeding an animated board. */
+/* The power cable's own movement colour has to read as different from
+   both the red data cable and the yellow trace/data movement already on
+   the board — a light blue "spark" reads as "electricity" without being
+   mistaken for either of those. */
+.caseOuter.powered .cablePowerInner{
+    stroke:#4cc9f0;
+    stroke-dasharray:3 2.5;
+    animation:tracePulse 0.6s linear infinite;
+}
+
+.caseOuter.powered .cableData{
+    stroke-dasharray:3 2.5;
+    animation:tracePulse 0.6s linear infinite;
+}
+
+.ledRow{
+    position:absolute;
+    top:-10px;
+    right:14px;
+    display:flex;
+    gap:5px;
+    z-index:10;
+}
+
+.led{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#2b2f36;
+    box-shadow:inset 0 0 2px rgba(0,0,0,0.6);
+}
+
+.caseOuter.powered .led{
+    background:#38b000;
+    box-shadow:0 0 6px 2px rgba(56,176,0,0.8);
+    animation:ledPulse 1.6s ease-in-out infinite;
+}
+
+.plaque{
+    position:absolute;
+    bottom:-2px;
+    left:50%;
+    transform:translate(-50%,100%);
+    background:#ffd60a;
+    color:#0d1b2a;
+    font-size:0.62rem;
+    font-weight:bold;
+    padding:2px 6px;
+    border-radius:4px;
+    white-space:nowrap;
+    max-width:130px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    z-index:5;
+}
+
+.infoBtn{
+    position:absolute;
+    top:2px;
+    right:2px;
+    background:#0077b6;
+    color:white;
+    border:none;
+    border-radius:50%;
+    width:18px;
+    height:18px;
+    font-size:0.7rem;
+    font-weight:bold;
+    cursor:pointer;
+    line-height:18px;
+    padding:0;
+    z-index:6;
+}
+
+.removeBtn{
+    position:absolute;
+    top:2px;
+    left:2px;
+    background:#c1121f;
+    color:white;
+    border:none;
+    border-radius:50%;
+    width:18px;
+    height:18px;
+    font-size:0.65rem;
+    font-weight:bold;
+    cursor:pointer;
+    line-height:18px;
+    padding:0;
+    z-index:6;
+}
+
+.removeBtn:hover{
+    background:#e63946;
+}
+
+.tray{
+    width:340px;
+    max-width:92vw;
+    border-radius:10px;
+    transition:box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.tray.dragover{
+    box-shadow:0 0 0 2px #ffd60a inset;
+    background:rgba(255,214,10,0.06);
+}
+
+.trayTitle{
+    color:#ffd60a;
+    font-size:1rem;
+    margin-bottom:8px;
+}
+
+.trayGrid{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    gap:10px;
+}
+
+.tile{
+    background:#102d52;
+    border:2px solid var(--accent-color, #3a5686);
+    border-radius:8px;
+    padding:6px;
+    cursor:pointer;
+    transition:transform 0.15s ease, border-color 0.15s ease;
+    position:relative;
+    box-sizing:content-box;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.tile:hover{
+    transform:translateY(-2px);
+    border-color:#ffd60a;
+}
+
+.tile.selected{
+    border-color:#ffd60a;
+    box-shadow:0 0 0 2px #ffd60a;
+}
+
+.tile.dragging{
+    opacity:0.4;
+}
+
+.tile.done{
+    opacity:0.45;
+    cursor:default;
+    border-color:#38b000;
+}
+
+.tile.loose{
+    opacity:0.45;
+    cursor:default;
+    border-color:#d4af37;
+}
+
+.tileIcon{
+    width:100%;
+    height:100%;
+    display:block;
+}
+
+.tileIcon.rotated, .looseItem .iconWrap.rotated{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%) rotate(90deg);
+}
+
+.tileBadge{
+    position:absolute;
+    top:3px;
+    left:4px;
+    background:rgba(13,27,42,0.8);
+    color:#9aabce;
+    font-size:0.58rem;
+    font-weight:bold;
+    padding:1px 5px;
+    border-radius:8px;
+    pointer-events:none;
+}
+
+.doneMark{
+    position:absolute;
+    top:2px;
+    right:4px;
+    font-size:0.85rem;
+    color:#38b000;
+}
+
+.looseMark{
+    position:absolute;
+    top:2px;
+    right:4px;
+    font-size:0.7rem;
+    color:#d4af37;
+}
+
+.toast{
+    position:fixed;
+    left:50%;
+    bottom:24px;
+    transform:translateX(-50%) translateY(20px);
+    background:#c1121f;
+    color:white;
+    padding:10px 18px;
+    border-radius:8px;
+    font-size:0.9rem;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.25s ease, transform 0.25s ease;
+    z-index:50;
+}
+
+.toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+}
+
+.modalBackdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(3,10,25,0.75);
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:16px;
+}
+
+.modalBackdrop.show{
+    display:flex;
+}
+
+.modalCard{
+    background:#102d52;
+    border:2px solid #ffd60a;
+    border-radius:14px;
+    padding:20px;
+    max-width:420px;
+    width:100%;
+    text-align:center;
+}
+
+.modalIcon{
+    width:90px;
+    height:90px;
+    margin:0 auto 10px auto;
+}
+
+.modalQ{
+    color:#ffd60a;
+    font-size:1.05rem;
+    margin-bottom:12px;
+}
+
+.choices{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.choiceBtn{
+    background:#0d1b2a;
+    color:white;
+    border:1px solid #3a5686;
+    border-radius:8px;
+    padding:10px;
+    font-size:0.85rem;
+    cursor:pointer;
+    text-align:left;
+}
+
+.choiceBtn:hover{
+    border-color:#ffd60a;
+}
+
+.choiceBtn.correct{
+    background:#1e5c1f;
+    border-color:#38b000;
+}
+
+.choiceBtn.wrong{
+    background:#5c1e1e;
+    border-color:#c1121f;
+}
+
+.choiceBtn.disabled{
+    pointer-events:none;
+    opacity:0.55;
+}
+
+.modalFeedback{
+    min-height:20px;
+    font-size:0.85rem;
+    color:#70e000;
+    margin-top:10px;
+}
+
+.completeBanner{
+    display:none;
+    max-width:900px;
+    margin:16px auto;
+    background:#12351a;
+    border:2px solid #38b000;
+    border-radius:12px;
+    padding:18px;
+}
+
+.completeBanner.show{
+    display:block;
+}
+
+.completeBanner h2{
+    color:#70e000;
+    font-size:1.3rem;
+}
+
+table{
+    border-collapse:collapse;
+    width:100%;
+    margin-top:12px;
+    background:white;
+    color:#0d1b2a;
+}
+
+th{
+    background:#ffc300;
+    color:#c1121f;
+    padding:8px;
+    font-size:0.9rem;
+}
+
+td{
+    border:1px solid #ccc;
+    padding:8px;
+    font-size:0.85rem;
+    text-align:left;
+}
+
+.actions{
+    margin-top:14px;
+}
+
+button.action{
+    background:#0077b6;
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:10px 18px;
+    font-size:0.95rem;
+    cursor:pointer;
+    margin:4px;
+}
+
+button.action:hover{
+    background:#0096c7;
+}
+
+.backLink{
+    display:inline-block;
+    margin-top:14px;
+    color:#90e0ef;
+    font-size:0.85rem;
+    text-decoration:none;
+}
+
+.backLink:hover{
+    text-decoration:underline;
+}
+
+</style>
+</head>
+<body>
+
+<div class="header">
+    <img src="jhn_logo.jpg" class="logo">
+    <div>
+        <h1>Build a Computer</h1>
+        <h2>KS3 Computer Science &mdash; Inside a Computer</h2>
+    </div>
+    <img src="jhn_logo.jpg" class="logo">
+</div>
+
+<div class="instructions">
+    <strong>How to play:</strong> Fit the motherboard into the case first &mdash; once it's in,
+    its real layout appears and you can drag each part onto the socket it belongs to. Try a part
+    before the board's ready and it'll just sit loose in the case until you can see where it
+    really goes. Get the order wrong (like fitting the fan before the CPU) and you'll need to take
+    it back out (drag it to the tray, or hit &#10005;) and try again. Once each part fits, answer two quick questions to
+    label it with its correct name and definition &mdash; get every part in correctly and watch
+    the computer power up!
+</div>
+
+<div class="progressWrap">
+    <div class="progressLabel" id="progressLabel">0 of 7 components built</div>
+    <div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
+</div>
+
+<div class="buildArea">
+
+    <div class="caseOuter" id="caseOuter">
+        <div class="ledRow"><span class="led"></span><span class="led"></span></div>
+        <div class="caseInner" id="caseInner"></div>
+    </div>
+
+    <div class="tray" id="trayPanel">
+        <div class="trayTitle">Parts Tray</div>
+        <div class="trayGrid" id="trayGrid"></div>
+    </div>
+
+</div>
+
+<div class="completeBanner" id="completeBanner">
+    <h2>&#127881; You built the computer &mdash; and it's powered on!</h2>
+    <p>Look at the case: the fan's spinning and the lights are on. Here's a reminder of every
+    component and what it does:</p>
+    <table>
+        <tr><th>Component</th><th>What it does</th></tr>
+        <tbody id="summaryBody"></tbody>
+    </table>
+    <div class="actions">
+        <button class="action" onclick="resetGame()">Build Again</button>
+    </div>
+</div>
+
+<div class="actions">
+    <button class="action" onclick="resetGame()">Reset</button>
+</div>
+
+<a class="backLink" href="../fetch_decode_execute/teacher_fde.html">&larr; Back to KS3 Computing tasks</a>
+
+<div class="toast" id="toast"></div>
+
+<div class="modalBackdrop" id="modalBackdrop">
+    <div class="modalCard">
+        <div class="modalIcon" id="modalIcon"></div>
+        <div class="modalQ" id="modalQ"></div>
+        <div class="choices" id="modalChoices"></div>
+        <div class="modalFeedback" id="modalFeedback"></div>
+    </div>
+</div>
+
+<script src="../shared/component-icons.js"></script>
+<script>
+
+const FILL_COLORS = {motherboard:'#1f6f3f', cpu:'#8a9096', ram:'#2e8b57', psu:'#3a3f47', hdd:'#d9dee3', fan:'#4a4f57', nic:'#1e5aa8'};
+
+function icon(name){
+    switch(name){
+        // The tray, the quiz, and the case all show the exact same picture —
+        // motherboardDiagram() bakes the CPU socket/RAM slot/expansion
+        // slot/fan mount into the board itself, and it's a pure function of
+        // static layout data, so there's no "placed" vs "in the tray" version.
+        case 'motherboard': return motherboardDiagram();
+        case 'cpu': return ComponentIcons.cpu(FILL_COLORS.cpu);
+        case 'ram': return ComponentIcons.ram(FILL_COLORS.ram);
+        case 'psu': return ComponentIcons.psu(FILL_COLORS.psu);
+        case 'hdd': return ComponentIcons.storage('HDD', FILL_COLORS.hdd);
+        case 'fan': return ComponentIcons.fan(FILL_COLORS.fan);
+        case 'nic': return ComponentIcons.nic(FILL_COLORS.nic);
+        default: return '';
+    }
+}
+
+// Once a part is actually seated on the board, RAM switches from its
+// recognisable "identify it" picture to a chunkier top-down installed look —
+// everything else reads fine as the same picture either way.
+function boardIcon(name){
+    if(name === 'ram') return ComponentIcons.ramBoard(FILL_COLORS.ram);
+    if(name === 'nic') return ComponentIcons.nicBoard(FILL_COLORS.nic);
+    if(name === 'hdd') return ComponentIcons.hddInstalled(FILL_COLORS.hdd);
+    return icon(name);
+}
+
+// RAM's identify picture is drawn lying down (pins along a long side) but
+// its tray/loose footprint is tall (it mirrors how it stands on the
+// board) — rotate the picture upright so it fills that tall box instead
+// of shrinking to a sliver. `el` must be a positioned (relative/absolute)
+// ancestor for the rotated box to centre against.
+function setIdentifyIcon(el, id, w, h){
+    el.innerHTML = icon(id);
+    if(id === 'ram'){
+        el.classList.add('rotated');
+        el.style.width = h + 'px';
+        el.style.height = w + 'px';
+    }
+}
+
+function socketIcon(name){
+    switch(name){
+        case 'motherboard': return ComponentIcons.motherboardBay(FILL_COLORS.motherboard);
+        case 'cpu': return ComponentIcons.cpuSocket(FILL_COLORS.cpu);
+        case 'ram': return ComponentIcons.ramSlot(FILL_COLORS.ram);
+        case 'nic': return ComponentIcons.expansionSlot(FILL_COLORS.nic);
+        case 'psu': return ComponentIcons.psuBay(FILL_COLORS.psu);
+        case 'hdd': return ComponentIcons.hddBay(FILL_COLORS.hdd);
+        case 'fan': return ComponentIcons.fanMount(FILL_COLORS.fan);
+        default: return '';
+    }
+}
+
+const SOCKET_LABELS = {
+    motherboard:'Motherboard bay',
+    cpu:'CPU socket',
+    ram:'RAM slot',
+    nic:'Expansion slot',
+    psu:'Power supply bay',
+    hdd:'Drive bay',
+    fan:'Fan mount (sits on the CPU)'
+};
+
+const components = [
+
+    {
+        id:'motherboard',
+        name:'Motherboard',
+        def:"This is where all the other components plug in. It's covered in circuits (wires) that carry data between the different parts of the computer.",
+        slot:{left:2,top:3,width:62,height:93}
+    },
+    {
+        id:'cpu',
+        name:'Central Processing Unit (CPU)',
+        def:"This processes the instructions in the computer. Some people call it the 'brain' of the computer. It fetches an instruction from memory, decodes it, then executes it — and repeats this over and over.",
+        slot:{left:10.5,top:12,width:23.5,height:20}
+    },
+    {
+        id:'fan',
+        name:'Cooling Fan',
+        def:"This sits on top of the CPU and helps keep it cool, because processing instructions so quickly makes it work hard and get hot!",
+        // Must fully contain the CPU's slot (see ON_BOARD z-index notes
+        // below) AND leave the four mount holes — derived from this box's
+        // own corners — clear of the CPU socket on every side. The old
+        // box was only ~3% bigger than the CPU on most sides and barely
+        // bigger at all on the bottom, so the bottom two holes landed
+        // inside the CPU socket instead of outside it. This pads the CPU
+        // slot evenly (~6%) on all four sides instead.
+        slot:{left:4.5,top:6,width:35.5,height:32}
+    },
+    {
+        id:'ram',
+        name:'RAM (Random Access Memory)',
+        def:"This stores data that is currently in use. It is much quicker for the CPU to get data from here than from the hard drive.",
+        // Two real DIMM slots side by side, like a real bank — narrower
+        // than the single slot this used to be, so both fit with room
+        // to spare rather than one slot plus a decorative, unfillable
+        // duplicate next to it.
+        slot:{left:41,top:10,width:5.5,height:42},
+        extraSlots:[
+            {left:48.5,top:10,width:5.5,height:42}
+        ]
+    },
+    {
+        id:'nic',
+        name:'Network Interface Card (NIC)',
+        def:"An expansion card that lets the computer connect to a network, such as the internet, usually using a cable.",
+        // A real board has a row of several expansion slots, all the same
+        // size (PCIe x1 slots are physically identical — it's only the
+        // longer x16 slot or two that differ, and this board doesn't
+        // model that distinction). Five slots, uniform size, flush with
+        // the motherboard's own left edge (left:2, same as the
+        // motherboard's own slot — that edge is the case's back panel,
+        // where a card's bracket actually has to reach), stacked below
+        // the fan (which bottoms out at top:6+height:32=38) down to just
+        // above the board's own bottom edge. `slot` is the first one,
+        // `extraSlots` the other four — any of the five is a valid fit.
+        slot:{left:2,top:40,width:30,height:9},
+        extraSlots:[
+            {left:2,top:51,width:30,height:9},
+            {left:2,top:62,width:30,height:9},
+            {left:2,top:73,width:30,height:9},
+            {left:2,top:84,width:30,height:9}
+        ]
+    },
+    {
+        id:'psu',
+        name:'Power Supply Unit (PSU)',
+        def:"This is where the power lead plugs in. It supplies power to all the other components, such as the hard drive and the motherboard.",
+        // Bigger than the CPU's own footprint — a PSU is a solid
+        // external box, not a small chip, and the two tray tiles read
+        // that way because this IS the PSU's real footprint in the
+        // case (not a tray-only exaggeration): it was deliberately
+        // enlarged from its original {28,24} for exactly this
+        // comparison, the same real lever RAM/NIC/fan slot changes
+        // elsewhere in this file use — grow the real case footprint,
+        // not a tray-only number, if the tray needs to show a part as
+        // bigger. See tileSize() for why there's no separate tray-only
+        // sizing path any more.
+        slot:{left:65,top:4,width:31,height:27}
+    },
+    {
+        id:'hdd',
+        name:'Hard Disk Drive (HDD)',
+        def:"A magnetic hard drive or solid-state drive. It stores data permanently, so your files are still there when you switch the computer back on.",
+        // Height matches the drive icon's own 100:56 design aspect once
+        // converted to real case pixels — width28/height22 used to leave it
+        // squashed once icons stopped letterboxing (they now stretch to
+        // fill their slot exactly, so the slot has to be the right shape).
+        slot:{left:66,top:64,width:28,height:13.7}
+    }
+];
+
+const byId = Object.fromEntries(components.map(c=>[c.id,c]));
+
+const ON_BOARD_IDS = ['cpu','ram','nic','fan'];
+
+let placed = {};
+let loose = {};
+// Which specific slot rect a placed part landed in, for parts (like NIC)
+// that have more than one valid slot — falls back to `comp.slot` when unset.
+let placedAt = {};
+let tileOrder = [];
+let selectedTileId = null;
+let draggedId = null;
+
+// Tray tiles are sized from each part's own `slot` — the exact same
+// case-relative percentages used to place it in the case — scaled by
+// ONE shared factor, with no per-part adjustment of any kind. Every
+// previous version of this (floor-boosting thin parts up to a minimum,
+// then clamping the boosted result against the motherboard, then
+// hand-tuned `trayFootprint` overrides for fan/RAM/PSU to fight the
+// clamp) kept breaking some other comparison every time it fixed one,
+// because each of those was its own extra rule with its own blind spot.
+// This has none: a tile's size in the tray IS its real size in the
+// case, scaled down. If two parts are 73% apart in the case, they're
+// 73% apart in the tray — not 85%, not whatever a margin constant
+// happened to allow. There is nothing left to tune per-part; if a
+// comparison still looks wrong, the fix is to change that part's `slot`
+// (its real case footprint), not to add another tray-only exception.
+const CASE_REF_W = 540;
+const CASE_REF_H = CASE_REF_W * 8 / 7;
+
+function realSlotSize(id){
+    const s = byId[id].slot;
+    return { w: s.width / 100 * CASE_REF_W, h: s.height / 100 * CASE_REF_H };
+}
+
+const TRAY_MAX_PX = 170;
+const _allSlotDims = components.flatMap(c=>{ const r = realSlotSize(c.id); return [r.w, r.h]; });
+const TRAY_SCALE = TRAY_MAX_PX / Math.max(..._allSlotDims);
+
+function tileSize(id){
+    const r = realSlotSize(id);
+    return { w: Math.round(r.w * TRAY_SCALE), h: Math.round(r.h * TRAY_SCALE) };
+}
+
+function isOut(id){
+    return !!(placed[id] || loose[id]);
+}
+
+function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+}
+
+function canPlace(id){
+    if(id === 'motherboard'){
+        const mobo = byId['motherboard'].slot;
+        const blockingId = Object.keys(loose).find(lid=>{
+            const p = loose[lid];
+            return p.x >= mobo.left && p.x <= mobo.left + mobo.width &&
+                   p.y >= mobo.top && p.y <= mobo.top + mobo.height;
+        });
+        if(blockingId){
+            return {ok:false, msg: byId[blockingId].name + " is sitting in the way — pick it up and move it clear of the motherboard first."};
+        }
+    }
+    if(id === 'cpu' && placed['fan']){
+        return {ok:false, msg:"The Cooling Fan is already sitting there — remove it first, then fit the CPU underneath."};
+    }
+    return {ok:true};
+}
+
+function placementNote(id){
+    if(id === 'fan' && !placed['cpu']){
+        return "Fitted! But there's no CPU under there to cool yet — you'll need to remove the fan again before you can add one.";
+    }
+    return null;
+}
+
+function motherboardLocalRect(s){
+    const mobo = byId['motherboard'].slot;
+    return {
+        x: (s.left - mobo.left) / mobo.width * 100,
+        y: (s.top - mobo.top) / mobo.height * 128,
+        w: s.width / mobo.width * 100,
+        h: s.height / mobo.height * 128
+    };
+}
+
+function motherboardLocal(compId){
+    return motherboardLocalRect(byId[compId].slot);
+}
+
+// Where the ATX power connector and the SATA data port sit on the
+// motherboard, in the board's own local coordinates (same 100x128 frame
+// as everything else motherboardDiagram() bakes in). Free, unused
+// corners of the board: top-right (above where the RAM slots start) and
+// bottom-right (clear of the NIC slots, which run along the bottom-left).
+// Shared between motherboardDiagram() (draws the marks) and
+// motherboardPowerAnchor()/motherboardSataAnchor() (give cableOverlay()
+// the exact same points to route cables to) so the two can't drift apart.
+const MOBO_POWER_CONN_LOCAL = {x:84, y:2, w:10, h:6};
+const MOBO_SATA_CONN_LOCAL = {x:84, y:97, w:10, h:6};
+
+function motherboardLocalToCase(x, y){
+    const mobo = byId['motherboard'].slot;
+    return {
+        x: mobo.left + x / 100 * mobo.width,
+        y: mobo.top + y / 128 * mobo.height
+    };
+}
+
+function localCenter(r){
+    return {x: r.x + r.w / 2, y: r.y + r.h / 2};
+}
+
+function slotRectsFor(comp){
+    return [comp.slot, ...(comp.extraSlots || [])];
+}
+
+function motherboardDiagram(){
+    const cpuPos = motherboardLocal('cpu');
+    const fanPos = motherboardLocal('fan');
+    const ramPositions = slotRectsFor(byId['ram']).map(motherboardLocalRect);
+    const nicPositions = slotRectsFor(byId['nic']).map(motherboardLocalRect);
+
+    const ramSvgs = ramPositions.map(p=>
+        `<svg x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" preserveAspectRatio="none">${ComponentIcons.ramSlot(FILL_COLORS.ram)}</svg>`
+    ).join('');
+    const nicSvgs = nicPositions.map(p=>
+        `<svg x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" preserveAspectRatio="none">${ComponentIcons.expansionSlot(FILL_COLORS.nic)}</svg>`
+    ).join('');
+
+    // The power-on "lights" trace a real path between real components
+    // instead of an arbitrary decorative squiggle: CPU<->RAM (the CPU
+    // constantly reads/writes working memory) and NIC<->CPU (incoming
+    // network data has to reach the processor). Computed from each
+    // part's actual baked position so it stays correct if any slot moves.
+    const ramCenter = {x: ramPositions[0].x + ramPositions[0].w / 2, y: ramPositions[0].y + ramPositions[0].h / 2};
+    const nicCenter = {x: nicPositions[0].x + nicPositions[0].w / 2, y: nicPositions[0].y};
+    const cpuRight = {x: cpuPos.x + cpuPos.w, y: cpuPos.y + cpuPos.h / 2};
+    const cpuBottom = {x: cpuPos.x + cpuPos.w / 2, y: cpuPos.y + cpuPos.h};
+    const midX = (cpuRight.x + ramPositions[0].x) / 2;
+    const midY = (cpuBottom.y + nicCenter.y) / 2;
+    // A third trace continues the data cable's journey onto the board
+    // itself: once it reaches the SATA port, it still has to get from
+    // that port to the CPU — same "real path between real components"
+    // reasoning as the other two, just picking up where the physical
+    // HDD<->motherboard cable (see cableOverlay() below) leaves off.
+    const sataCenter = localCenter(MOBO_SATA_CONN_LOCAL);
+    const midY2 = (sataCenter.y + cpuBottom.y) / 2;
+    const tracePaths = [
+        `M ${cpuRight.x} ${cpuRight.y} L ${midX} ${cpuRight.y} L ${midX} ${ramCenter.y} L ${ramPositions[0].x} ${ramCenter.y}`,
+        `M ${nicCenter.x} ${nicCenter.y} L ${nicCenter.x} ${midY} L ${cpuBottom.x} ${midY} L ${cpuBottom.x} ${cpuBottom.y}`,
+        `M ${sataCenter.x} ${sataCenter.y} L ${sataCenter.x} ${midY2} L ${cpuBottom.x} ${midY2} L ${cpuBottom.x} ${cpuBottom.y}`
+    ];
+
+    // These holes have to land exactly where the fan's OWN four corner
+    // screws (drawn at 7/64 and 57/64 of its 64-unit viewBox, see fan() in
+    // component-icons.js) end up once it's actually placed — so they're
+    // computed as that same fraction of the fan's own drop-target box,
+    // not some separate hand-picked offset from the CPU socket.
+    const hs = 7;
+    const fr = 7 / 64;
+    const holeCorners = [
+        {x: fanPos.x + fr * fanPos.w, y: fanPos.y + fr * fanPos.h},
+        {x: fanPos.x + (1 - fr) * fanPos.w, y: fanPos.y + fr * fanPos.h},
+        {x: fanPos.x + fr * fanPos.w, y: fanPos.y + (1 - fr) * fanPos.h},
+        {x: fanPos.x + (1 - fr) * fanPos.w, y: fanPos.y + (1 - fr) * fanPos.h}
+    ];
+    const fanHoles = holeCorners.map(p=>
+        `<svg x="${p.x - hs / 2}" y="${p.y - hs / 2}" width="${hs}" height="${hs}">${ComponentIcons.fanMount(FILL_COLORS.fan)}</svg>`
+    ).join('');
+
+    // ATX power connector and SATA data port — color-matched (stroke) to
+    // the part that plugs into each, same "colour is the affordance"
+    // language as every other socket here, so a student can match PSU's
+    // grey to the power connector and HDD's grey to the data port even
+    // before a cable is run. cableOverlay() routes cables to these exact
+    // rects (converted to case-% via motherboardLocalToCase()).
+    const pc = MOBO_POWER_CONN_LOCAL, sc = MOBO_SATA_CONN_LOCAL;
+    const powerConnMark = `<g>
+        <rect x="${pc.x}" y="${pc.y}" width="${pc.w}" height="${pc.h}" rx="0.8" fill="#12161d" stroke="${FILL_COLORS.psu}" stroke-width="1.1"/>
+        <g fill="${FILL_COLORS.psu}" opacity="0.85">
+            <rect x="${pc.x+1.5}" y="${pc.y+1.5}" width="1.3" height="3"/><rect x="${pc.x+4.3}" y="${pc.y+1.5}" width="1.3" height="3"/>
+            <rect x="${pc.x+7.1}" y="${pc.y+1.5}" width="1.3" height="3"/>
+        </g>
+    </g>`;
+    const sataConnMark = `<g>
+        <rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.h}" rx="0.8" fill="#12161d" stroke="${FILL_COLORS.hdd}" stroke-width="1.1"/>
+        <rect x="${sc.x+4.2}" y="${sc.y+1.5}" width="1.3" height="3" fill="${FILL_COLORS.hdd}" opacity="0.7"/>
+    </g>`;
+
+    return `<svg viewBox="0 0 100 128" width="100%" height="100%" preserveAspectRatio="none">
+        ${ComponentIcons.motherboard(tracePaths)}
+        ${fanHoles}
+        <svg x="${cpuPos.x}" y="${cpuPos.y}" width="${cpuPos.w}" height="${cpuPos.h}" preserveAspectRatio="none">${ComponentIcons.cpuSocket(FILL_COLORS.cpu)}</svg>
+        ${ramSvgs}
+        ${nicSvgs}
+        ${powerConnMark}
+        ${sataConnMark}
+    </svg>`;
+}
+
+// Cable endpoints on parts that live directly in the case (not on the
+// motherboard), in each part's own local/design coordinates — converted
+// to case-% the same way motherboardLocalToCase() does for the board.
+// Kept as named constants, next to the icon functions they have to stay
+// in sync with, rather than magic numbers buried in cableOverlay().
+const PSU_CABLE_EXIT_LOCAL = {x:63, y:66, w:70, h:70};       // psu()'s own cable-stub cluster
+const HDD_DATA_SLOT_LOCAL = {x:73, y:11, w:100, h:56};       // hddInstalled()'s #hddDataSlot centre
+const HDD_POWER_SLOT_LOCAL = {x:87.5, y:11, w:100, h:56};    // hddInstalled()'s #hddPowerSlot centre
+
+function partLocalToCase(compId, point, frameW, frameH){
+    const s = byId[compId].slot;
+    return {
+        x: s.left + point.x / frameW * s.width,
+        y: s.top + point.y / frameH * s.height
+    };
+}
+
+function psuCableAnchor(){
+    return partLocalToCase('psu', PSU_CABLE_EXIT_LOCAL, PSU_CABLE_EXIT_LOCAL.w, PSU_CABLE_EXIT_LOCAL.h);
+}
+function hddDataAnchor(){
+    return partLocalToCase('hdd', HDD_DATA_SLOT_LOCAL, HDD_DATA_SLOT_LOCAL.w, HDD_DATA_SLOT_LOCAL.h);
+}
+function hddPowerAnchor(){
+    return partLocalToCase('hdd', HDD_POWER_SLOT_LOCAL, HDD_POWER_SLOT_LOCAL.w, HDD_POWER_SLOT_LOCAL.h);
+}
+function motherboardPowerAnchor(){
+    const p = localCenter(MOBO_POWER_CONN_LOCAL);
+    return motherboardLocalToCase(p.x, p.y);
+}
+function motherboardSataAnchor(){
+    const p = localCenter(MOBO_SATA_CONN_LOCAL);
+    return motherboardLocalToCase(p.x, p.y);
+}
+
+// Both motherboard connector marks are small boxes right at the board's
+// edge — a curve arriving at their exact centre from an arbitrary angle
+// (wherever the PSU/HDD happens to sit) can clip past a corner instead
+// of visibly entering the socket, which is exactly what was happening:
+// measured as "technically inside the box" but reading as "near it" to
+// the eye. Both marks open rightward, toward the board's own spare edge
+// space, so every cable now gets one fixed, clean final approach: curve
+// to a lead-in point just outside the mark, then a short straight,
+// perfectly horizontal segment into its centre — regardless of which
+// direction the rest of the cable travelled in to get there.
+function motherboardConnEntryPath(a, markLocal){
+    const center = localCenter(markLocal);
+    const leadInLocal = {x: markLocal.x + markLocal.w + 3, y: center.y};
+    const leadIn = motherboardLocalToCase(leadInLocal.x, leadInLocal.y);
+    const centerCase = motherboardLocalToCase(center.x, center.y);
+    return cableCurvePath(a, leadIn) + ` L ${centerCase.x} ${centerCase.y}`;
+}
+
+// A soft curve between two case-% points — deliberately NOT the sharp
+// right-angle routing the power-on trace paths use. Traces are etched
+// copper on a rigid board, so right angles read correctly for them;
+// cables are physical wire with slack in it, so a straight line or a
+// PCB-trace elbow both read as "ruler-drawn" rather than a real cable.
+// The control points bow the curve out roughly 30% of the distance
+// between the two points, perpendicular-ish to the main direction of
+// travel, which is enough slack to read as a cable without looping back
+// on itself for any of this game's actual (mostly vertical) cable runs.
+function cableCurvePath(a, b){
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const c1 = {x: a.x + dx * 0.15, y: a.y + dy * 0.65};
+    const c2 = {x: a.x + dx * 0.85, y: a.y + dy * 0.35};
+    return `M ${a.x} ${a.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${b.x} ${b.y}`;
+}
+
+// A small plug-head rectangle at a cable's end, sized to sit just inside
+// the (now-shrunk) port it plugs into — so the cable visibly terminates
+// IN a connector, not as a bare line stopping near one.
+function cablePlugMark(p, power){
+    const w = power ? 2.2 : 1.6, h = power ? 1.4 : 1.1;
+    const color = power ? '#ffd60a' : '#ff8577';
+    return `<rect x="${p.x - w / 2}" y="${p.y - h / 2}" width="${w}" height="${h}" rx="0.35" fill="${color}" stroke="#12161d" stroke-width="0.35"/>`;
+}
+
+// Each cable only appears once BOTH of its real endpoints are actually
+// placed — cables are a consequence of what's built, not pre-drawn
+// guide lines, consistent with "no drop-zone UI chrome" elsewhere in
+// this game. Coordinates are case-% (0-100 over the case's own width
+// and height), matching how every slot div is already positioned, so
+// the overlay svg uses viewBox="0 0 100 100" with preserveAspectRatio
+//="none" rather than trying to match the case's real 7:8 aspect ratio.
+function cableOverlay(){
+    const cables = [];
+    if(placed['psu'] && placed['motherboard']){
+        const a = psuCableAnchor();
+        cables.push({a, b: motherboardPowerAnchor(), d: motherboardConnEntryPath(a, MOBO_POWER_CONN_LOCAL), power: true});
+    }
+    if(placed['psu'] && placed['hdd']){
+        const a = psuCableAnchor(), b = hddPowerAnchor();
+        cables.push({a, b, d: cableCurvePath(a, b), power: true});
+    }
+    if(placed['hdd'] && placed['motherboard']){
+        const a = hddDataAnchor();
+        cables.push({a, b: motherboardSataAnchor(), d: motherboardConnEntryPath(a, MOBO_SATA_CONN_LOCAL), power: false});
+    }
+    if(!cables.length) return '';
+
+    const parts = cables.map(c=>{
+        const plugs = cablePlugMark(c.a, c.power) + cablePlugMark(c.b, c.power);
+        return (c.power
+            ? `<path class="cablePowerOuter" d="${c.d}"/><path class="cablePowerInner" d="${c.d}"/>`
+            : `<path class="cableData" d="${c.d}"/><path class="cableDataHighlight" d="${c.d}"/>`
+        ) + plugs;
+    }).join('');
+
+    return `<svg class="cableOverlay" viewBox="0 0 100 100" preserveAspectRatio="none">${parts}</svg>`;
+}
+
+function buildCase(){
+    refreshCase();
+}
+
+function refreshCase(){
+    const caseInner = document.getElementById('caseInner');
+    caseInner.innerHTML = '';
+
+    const dumpZone = document.createElement('div');
+    dumpZone.className = 'dumpZone';
+    dumpZone.title = 'Drop a part anywhere here for now';
+    dumpZone.addEventListener('dragover', (e)=>{
+        e.preventDefault();
+        dumpZone.classList.add('dragover');
+    });
+    dumpZone.addEventListener('dragleave', ()=>dumpZone.classList.remove('dragover'));
+    dumpZone.addEventListener('drop', onDumpZoneDrop);
+    dumpZone.addEventListener('click', onDumpZoneClick);
+    caseInner.appendChild(dumpZone);
+
+    const cables = cableOverlay();
+    if(cables){
+        const cableWrap = document.createElement('div');
+        cableWrap.innerHTML = cables;
+        caseInner.appendChild(cableWrap.firstElementChild);
+    }
+
+    Object.keys(loose).forEach(id=>{
+        const comp = byId[id];
+        const pos = loose[id];
+        const size = tileSize(id);
+
+        const el = document.createElement('div');
+        el.className = 'looseItem';
+        el.style.left = pos.x + '%';
+        el.style.top = pos.y + '%';
+        el.style.width = Math.round(size.w * 0.7) + 'px';
+        el.style.height = Math.round(size.h * 0.7) + 'px';
+        el.title = comp.name + ' — not fitted yet (drag to the tray to pick it back up)';
+        el.draggable = true;
+        el.addEventListener('dragstart', (e)=>onRemovableDragStart(e, id));
+        el.addEventListener('dragend', onRemovableDragEnd);
+
+        const iconWrap = document.createElement('div');
+        iconWrap.className = 'iconWrap';
+        setIdentifyIcon(iconWrap, id, Math.round(size.w * 0.7), Math.round(size.h * 0.7));
+        el.appendChild(iconWrap);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'removeBtn';
+        removeBtn.textContent = '✕';
+        removeBtn.title = 'Pick this back up';
+        removeBtn.addEventListener('click',(e)=>{
+            e.stopPropagation();
+            removeComponent(id);
+        });
+        el.appendChild(removeBtn);
+
+        caseInner.appendChild(el);
+    });
+
+    components.forEach(comp=>{
+        if(ON_BOARD_IDS.includes(comp.id) && !placed['motherboard']) return;
+
+        if(placed[comp.id]){
+            const rect = placedAt[comp.id] || comp.slot;
+            caseInner.appendChild(buildFilledSlot(comp, rect));
+            return;
+        }
+
+        // Not placed yet: render one interactive div per valid slot (most
+        // parts only have one; NIC has several — any of them is correct).
+        slotRectsFor(comp).forEach((rect, idx)=>{
+            caseInner.appendChild(buildEmptySlot(comp, rect, idx));
+        });
+    });
+}
+
+function buildFilledSlot(comp, rect){
+    const slotEl = document.createElement('div');
+    slotEl.className = 'slot filled';
+    slotEl.id = 'slot-' + comp.id;
+    slotEl.style.left = rect.left + '%';
+    slotEl.style.top = rect.top + '%';
+    slotEl.style.width = rect.width + '%';
+    slotEl.style.height = rect.height + '%';
+    slotEl.style.zIndex = comp.id === 'fan' ? 3 : 2;
+    slotEl.title = comp.name;
+    slotEl.draggable = true;
+    slotEl.addEventListener('dragstart', (e)=>onRemovableDragStart(e, comp.id));
+    slotEl.addEventListener('dragend', onRemovableDragEnd);
+
+    // noPad on every placed part, not just the motherboard: the baked socket
+    // art (cpuSocket, fan mount holes, ramSlot, expansionSlot) is positioned
+    // assuming the filled icon fills its slot edge-to-edge. Padding the icon
+    // here while the socket math assumes none is exactly what left the fan's
+    // screws not lined up with the board's mounting holes.
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'iconWrap noPad';
+    iconWrap.innerHTML = comp.id === 'motherboard' ? motherboardDiagram() : boardIcon(comp.id);
+    slotEl.appendChild(iconWrap);
+
+    const plaque = document.createElement('div');
+    plaque.className = 'plaque';
+    plaque.textContent = comp.name;
+    slotEl.appendChild(plaque);
+
+    const infoBtn = document.createElement('button');
+    infoBtn.className = 'infoBtn';
+    infoBtn.textContent = 'i';
+    infoBtn.title = 'Show definition';
+    infoBtn.addEventListener('click',(e)=>{
+        e.stopPropagation();
+        showToast(comp.def, 6000);
+    });
+    slotEl.appendChild(infoBtn);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'removeBtn';
+    removeBtn.textContent = '✕';
+    removeBtn.title = 'Take this back out (or drag it to the tray)';
+    removeBtn.addEventListener('click',(e)=>{
+        e.stopPropagation();
+        removeComponent(comp.id);
+    });
+    slotEl.appendChild(removeBtn);
+
+    return slotEl;
+}
+
+function buildEmptySlot(comp, rect, idx){
+    const slotEl = document.createElement('div');
+    slotEl.className = 'slot empty';
+    slotEl.id = 'slot-' + comp.id + (idx ? '-' + idx : '');
+    slotEl.style.left = rect.left + '%';
+    slotEl.style.top = rect.top + '%';
+    slotEl.style.width = rect.width + '%';
+    slotEl.style.height = rect.height + '%';
+    // The fan's drop target fully overlaps the CPU's. Whichever part the
+    // student actually has selected/dragged wins that overlap, so both
+    // "CPU first" and the deliberate "fan first" mistake are reachable by
+    // clicking the obvious (centre) spot — a fixed z-index here previously
+    // left the fan's slot essentially unclickable while CPU was still empty.
+    const held = selectedTileId || draggedId;
+    if(held === comp.id){
+        slotEl.style.zIndex = 5;
+    } else {
+        slotEl.style.zIndex = comp.id === 'fan' ? (placed['cpu'] ? 3 : 1) : 2;
+    }
+    slotEl.title = SOCKET_LABELS[comp.id] || comp.name;
+
+    slotEl.addEventListener('click', (e)=>onSlotClick(e, comp.id, rect));
+    slotEl.addEventListener('dragover', (e)=>onSlotDragOver(e, comp.id));
+    slotEl.addEventListener('dragleave', (e)=>onSlotDragLeave(e));
+    slotEl.addEventListener('drop', (e)=>onSlotDrop(e, comp.id, rect));
+
+    if(selectedTileId){
+        slotEl.classList.add('selectable');
+    }
+
+    if(!ON_BOARD_IDS.includes(comp.id)){
+        const socketWrap = document.createElement('div');
+        socketWrap.className = 'iconWrap socketWrap';
+        socketWrap.innerHTML = socketIcon(comp.id) || comp.name;
+        slotEl.appendChild(socketWrap);
+    }
+    // On-board parts (cpu/ram/nic/fan) get no overlay at all once the
+    // motherboard's in — the baked socket art in motherboardDiagram()
+    // is the only affordance for where they go.
+
+    return slotEl;
+}
+
+function buildTray(){
+    tileOrder = shuffle(components.map(c=>c.id));
+    const grid = document.getElementById('trayGrid');
+    grid.innerHTML = '';
+
+    tileOrder.forEach(id=>{
+        const comp = byId[id];
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.id = 'tile-' + id;
+        tile.draggable = true;
+        tile.title = 'Part ' + (tileOrder.indexOf(id) + 1);
+
+        const size = tileSize(id);
+        tile.style.width = size.w + 'px';
+        tile.style.height = size.h + 'px';
+        tile.style.setProperty('--accent-color', FILL_COLORS[id] || '#3a5686');
+
+        tile.addEventListener('click', ()=>onTileClick(id));
+        tile.addEventListener('dragstart', (e)=>onDragStart(e, id));
+        tile.addEventListener('dragend', onDragEnd);
+
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'tileIcon';
+        setIdentifyIcon(iconDiv, id, size.w, size.h);
+
+        const badge = document.createElement('div');
+        badge.className = 'tileBadge';
+        badge.textContent = tileOrder.indexOf(id) + 1;
+
+        tile.appendChild(iconDiv);
+        tile.appendChild(badge);
+        grid.appendChild(tile);
+    });
+
+    refreshTray();
+}
+
+function refreshTray(){
+    components.forEach(comp=>{
+        const tile = document.getElementById('tile-' + comp.id);
+        tile.classList.remove('selected','done','loose');
+        const oldMark = tile.querySelector('.doneMark,.looseMark');
+        if(oldMark) oldMark.remove();
+
+        if(placed[comp.id]){
+            tile.classList.add('done');
+            const mark = document.createElement('div');
+            mark.className = 'doneMark';
+            mark.textContent = '✅';
+            tile.appendChild(mark);
+        } else if(loose[comp.id]){
+            tile.classList.add('loose');
+            const mark = document.createElement('div');
+            mark.className = 'looseMark';
+            mark.textContent = '\u{1F4E5}';
+            tile.appendChild(mark);
+        } else if(selectedTileId === comp.id){
+            tile.classList.add('selected');
+        }
+    });
+}
+
+function onTileClick(id){
+    if(isOut(id)) return;
+
+    selectedTileId = (selectedTileId === id) ? null : id;
+    refreshTray();
+    refreshCase();
+}
+
+function onSlotClick(e, id, rect){
+    if(!selectedTileId) return;
+    if(placed[id]) return;
+
+    if(selectedTileId !== id){
+        // Pre-motherboard, empty slot placeholders (especially the
+        // motherboard's own, which covers most of the case) shouldn't
+        // swallow clicks meant as a free-form dump — fall through to
+        // dumpAt() instead of rejecting the click, or "anywhere in the
+        // case" would really only mean "the margins around the slots".
+        if(canDump()){
+            const droppedId = selectedTileId;
+            selectedTileId = null;
+            dumpAt(droppedId, e.clientX, e.clientY);
+            return;
+        }
+        showToast("That part doesn't fit there — try again!");
+        return;
+    }
+
+    const check = canPlace(id);
+    if(!check.ok){
+        showToast(check.msg, 4000);
+        return;
+    }
+
+    selectedTileId = null;
+    startQuiz(byId[id], rect);
+}
+
+function onDragStart(e, id){
+    if(isOut(id)){
+        e.preventDefault();
+        return;
+    }
+    draggedId = id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+    document.getElementById('tile-' + id).classList.add('dragging');
+    selectedTileId = id;
+    refreshCase();
+}
+
+function onDragEnd(){
+    if(draggedId){
+        const tile = document.getElementById('tile-' + draggedId);
+        if(tile) tile.classList.remove('dragging');
+    }
+    draggedId = null;
+    selectedTileId = null;
+    refreshTray();
+    refreshCase();
+}
+
+function onSlotDragOver(e, id){
+    if(placed[id]) return;
+    e.preventDefault();
+    e.currentTarget.classList.add('dragover');
+}
+
+function onSlotDragLeave(e){
+    e.currentTarget.classList.remove('dragover');
+}
+
+function onSlotDrop(e, id, rect){
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('dragover');
+
+    const droppedId = e.dataTransfer.getData('text/plain') || draggedId;
+    if(!droppedId) return;
+    if(placed[id]) return;
+
+    if(droppedId !== id){
+        if(canDump()){
+            dumpAt(droppedId, e.clientX, e.clientY);
+            return;
+        }
+        showToast("That part doesn't fit there — try again!");
+        return;
+    }
+
+    const check = canPlace(id);
+    if(!check.ok){
+        showToast(check.msg, 4000);
+        return;
+    }
+
+    selectedTileId = null;
+    startQuiz(byId[droppedId], rect);
+}
+
+function dumpAt(id, clientX, clientY){
+    const caseInner = document.getElementById('caseInner');
+    const rect = caseInner.getBoundingClientRect();
+    const xPct = Math.min(94, Math.max(6, ((clientX - rect.left) / rect.width) * 100));
+    const yPct = Math.min(94, Math.max(6, ((clientY - rect.top) / rect.height) * 100));
+
+    loose[id] = {x:xPct, y:yPct};
+    refreshTray();
+    refreshCase();
+    showToast("Dropped in the case for now — pick it up and fit it properly once you can see where it goes.", 3500);
+}
+
+function canDump(){
+    return !placed['motherboard'];
+}
+
+function onDumpZoneDrop(e){
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain') || draggedId;
+    if(!id || isOut(id)) return;
+    if(!canDump()){
+        showToast("The motherboard's in now — find the part's own spot and drop it there.", 3200);
+        return;
+    }
+    dumpAt(id, e.clientX, e.clientY);
+}
+
+function onDumpZoneClick(e){
+    if(!selectedTileId) return;
+    const id = selectedTileId;
+    if(!canDump()){
+        showToast("The motherboard's in now — find the part's own spot and click it there.", 3200);
+        return;
+    }
+    selectedTileId = null;
+    dumpAt(id, e.clientX, e.clientY);
+}
+
+function onRemovableDragStart(e, id){
+    draggedId = id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+}
+
+function onRemovableDragEnd(){
+    draggedId = null;
+}
+
+function removeComponent(id){
+    const wasLoose = !!loose[id];
+    delete placed[id];
+    delete loose[id];
+    delete placedAt[id];
+    document.getElementById('completeBanner').classList.remove('show');
+    document.getElementById('caseOuter').classList.remove('powered');
+    refreshTray();
+    refreshCase();
+    updateProgress();
+    showToast(wasLoose ? 'Picked back up — it\'s waiting in the tray.' : 'Back in the tray — fit it again when you\'re ready.', 2000);
+}
+
+function showToast(msg, duration){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>{
+        toast.classList.remove('show');
+    }, duration || 2200);
+}
+
+function startQuiz(comp, rect){
+    askQuestion(comp, 'name', rect);
+}
+
+function askQuestion(comp, stage, rect){
+    const backdrop = document.getElementById('modalBackdrop');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalQ = document.getElementById('modalQ');
+    const modalChoices = document.getElementById('modalChoices');
+    const modalFeedback = document.getElementById('modalFeedback');
+
+    modalIcon.innerHTML = icon(comp.id);
+    modalFeedback.textContent = '';
+    modalChoices.innerHTML = '';
+
+    let correctText, options;
+
+    if(stage === 'name'){
+        modalQ.textContent = 'What is this component called?';
+        correctText = comp.name;
+        const others = shuffle(components.filter(c=>c.id!==comp.id).map(c=>c.name)).slice(0,3);
+        options = shuffle([correctText, ...others]);
+    } else {
+        modalQ.textContent = 'What does the ' + comp.name + ' do?';
+        correctText = comp.def;
+        const others = shuffle(components.filter(c=>c.id!==comp.id).map(c=>c.def)).slice(0,3);
+        options = shuffle([correctText, ...others]);
+    }
+
+    options.forEach(optText=>{
+        const btn = document.createElement('button');
+        btn.className = 'choiceBtn';
+        btn.textContent = optText;
+        btn.addEventListener('click', ()=>{
+            if(optText === correctText){
+                btn.classList.add('correct');
+                Array.from(modalChoices.children).forEach(b=>b.classList.add('disabled'));
+                modalFeedback.textContent = 'Correct!';
+
+                setTimeout(()=>{
+                    if(stage === 'name'){
+                        askQuestion(comp, 'def', rect);
+                    } else {
+                        finishPlacement(comp, rect);
+                    }
+                }, 650);
+            } else {
+                btn.classList.add('wrong','disabled');
+                modalFeedback.textContent = 'Not quite — try another answer.';
+                modalFeedback.style.color = '#ff8577';
+            }
+        });
+        modalChoices.appendChild(btn);
+    });
+
+    backdrop.classList.add('show');
+}
+
+function finishPlacement(comp, rect){
+    document.getElementById('modalBackdrop').classList.remove('show');
+    placed[comp.id] = true;
+    if(rect) placedAt[comp.id] = rect;
+    delete loose[comp.id];
+    refreshTray();
+    refreshCase();
+    updateProgress();
+
+    const note = placementNote(comp.id);
+    if(note){
+        showToast(note, 5000);
+    }
+}
+
+function updateProgress(){
+    const done = Object.keys(placed).length;
+    const total = components.length;
+    document.getElementById('progressLabel').textContent = done + ' of ' + total + ' components built';
+    document.getElementById('progressFill').style.width = Math.round((done/total)*100) + '%';
+
+    if(done === total){
+        showCompletion();
+    }
+}
+
+function showCompletion(){
+    const banner = document.getElementById('completeBanner');
+    const body = document.getElementById('summaryBody');
+    body.innerHTML = '';
+
+    components.forEach(comp=>{
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = comp.name;
+        const tdDef = document.createElement('td');
+        tdDef.textContent = comp.def;
+        tr.appendChild(tdName);
+        tr.appendChild(tdDef);
+        body.appendChild(tr);
+    });
+
+    banner.classList.add('show');
+    document.getElementById('caseOuter').classList.add('powered');
+}
+
+function resetGame(){
+    placed = {};
+    loose = {};
+    placedAt = {};
+    selectedTileId = null;
+    document.getElementById('completeBanner').classList.remove('show');
+    document.getElementById('modalBackdrop').classList.remove('show');
+    document.getElementById('caseOuter').classList.remove('powered');
+    buildTray();
+    buildCase();
+    updateProgress();
+}
+
+document.getElementById('modalBackdrop').addEventListener('click', (e)=>{
+    if(e.target.id === 'modalBackdrop'){
+        // prevent closing mid-quiz so students complete the pair of questions
+    }
+});
+
+const trayPanel = document.getElementById('trayPanel');
+trayPanel.addEventListener('dragover', (e)=>{
+    if(draggedId && isOut(draggedId)){
+        e.preventDefault();
+        trayPanel.classList.add('dragover');
+    }
+});
+trayPanel.addEventListener('dragleave', ()=>trayPanel.classList.remove('dragover'));
+trayPanel.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    trayPanel.classList.remove('dragover');
+    const id = e.dataTransfer.getData('text/plain') || draggedId;
+    if(id && isOut(id)) removeComponent(id);
+});
+
+buildTray();
+buildCase();
+updateProgress();
+
+</script>
+
+</body>
+</html>
