@@ -16,16 +16,62 @@ HDD and the motherboard is built and animates on power-up. No known open
 bugs — everything below was found, fixed, and re-verified against the
 running page (not just the code) before being called done.
 
-One **open design question, not a bug**, worth a conscious decision
-before it's touched again: the fan's tray tile now reads as bigger than
-the PSU's, because the fan's `slot` is deliberately padded past its
-literal size so its mount holes clear the CPU socket, and tray sizing is
-now a direct, unmodified scale-down of real case size with no per-part
-exceptions (see "Tray tile sizing" in Architecture). This is the
-*correct* output of the current rule, not a regression — but if it reads
-as wrong in the classroom, the fix is to make the fan's real on-board
-footprint smaller, which means revisiting the mount-hole-clearance
-padding, not adding a tray-only override back.
+**Resolved**: the fan's tray tile used to read bigger than the PSU's,
+because the fan's `slot` padded the CPU socket by ~6 units on every side
+to keep its mount holes (fixed at a 7/64 fraction of the fan's own box —
+see `motherboardDiagram()`) clear of it. That padding was nearly double
+what's mechanically needed (~3.3 horizontal / ~2.8 vertical minimum to
+just clear the holes). Tightened to a 4-unit pad on all sides —
+`slot:{left:6.5,top:8,width:31.5,height:28}` — which still clears the
+mount holes with a visible margin (verified live: holes land clearly
+outside the CPU socket on screen) and brings the fan's tray tile down to
+~match the PSU's.
+
+**Resolved**: tray tiles no longer scale real case size down — a tray
+tile is now the real case size (see "Tray tile sizing" in Architecture).
+Getting every tile to actually land on that, measured live for all 7
+parts, took two separate fixes: `tileSize()` was scaling by a
+`TRAY_SCALE`/`TRAY_MAX_PX` constant that's now gone entirely, and
+`CASE_REF_W` (the reference size "real" pixel units are computed
+against) was a hardcoded `540` that didn't account for `caseOuter`'s own
+padding+border eating 36px out of that before `caseInner` ever sees it —
+overstating every part's real size by ~7%. Both are fixed: `tileSize()`
+returns `realSlotSize(id)` directly (minus the tile's own fixed
+border+padding chrome, `TILE_CHROME_PX`, so the *rendered* tile — not
+just its content box — comes out to the exact case pixel size), and
+`CASE_REF_W`/`CASE_REF_H` are read live from `caseInner`'s own
+`getBoundingClientRect()` instead of a hand-copied number. One
+side-effect fix went with it: `.buildArea` (the flex row holding the
+case and the tray) needed `align-items:flex-start` — without it, a
+tray tall enough to hold true-size tiles (previously just the
+motherboard's own ~573px) stretched the case to match it via flex's
+default `align-items:stretch`.
+
+**Resolved**: RAM's tray tile was a near-invisible ~9px-wide sliver even
+once sized correctly, because its real case footprint is ~9:1 (thin and
+tall, how it's actually mounted) while its identify picture (`icon('ram')`)
+is drawn lying down — wide, pins along the bottom, the standard teaching
+image. Rather than rotating that wide picture 90° to cram it into a box
+shaped for the other orientation (the old approach), `tileDisplaySize(id)`
+now swaps the *tile's own* width/height for RAM so the box matches the
+icon's natural orientation, then triples just the short side
+(`RAM_SHORT_SIDE_BOOST`) since even swapped, 244×27 is too thin to read.
+This is the one explicit, named, on-request exception to "tray size is
+exactly the real case size" — every other part is untouched (see "Tray
+tile sizing" in Architecture).
+
+**Resolved**: NIC's tray tile read as the wrong size against the rest of
+the tray — a second named, on-request exception alongside RAM's. Boosted
+25% (`NIC_BOOST`) on its real size, applied before `TRAY_SHRINK` (same
+order as RAM's boost — a flat percentage of the real size, not of the
+already-shrunk tray tile).
+
+**On top of all of the above**: every tray tile is shrunk by a flat,
+uniform `TRAY_SHRINK` (2/3), applied last in `tileDisplaySize()` — after
+the real-size match and RAM's swap+boost, not instead of them. It's a
+tray-only, on-request scale-down (the case is untouched); every part
+shrinks by the same fraction, so the "tray size is exactly the real case
+size" relationship from above still holds at 2/3 scale, not just at 1:1.
 
 Next concrete steps, if picking this up fresh, are the "Ideas to explore
 next time" list at the bottom — nothing there is started.
@@ -390,36 +436,69 @@ actual wording carefully before changing behaviour in this list again.
     fixed stacking order — needed so *both* "CPU first" and the
     deliberate "fan first" mistake are reachable by clicking the obvious
     centre spot.
-  - **Tray tile sizing (`tileSize()`) is one line: `realSlotSize(id).{w,h}
-    * TRAY_SCALE`, where `TRAY_SCALE` maps the single largest real
-    dimension across every part (the motherboard's own height) to
-    `TRAY_MAX_PX`.** No floor-boosting, no clamping, no per-part
-    exceptions. A string of increasingly complicated fixes on top of
-    this formula — scale-from-smallest (blew up the motherboard), a
+  - **A tray tile is the real case size — not a scaled-down miniature of
+    it.** `tileSize(id)` returns `realSlotSize(id)` directly (minus
+    `TILE_CHROME_PX`, the tile's own fixed border+padding, subtracted so
+    the tile's *rendered* footprint — border and padding included, i.e.
+    what `getBoundingClientRect()` actually reports — comes out to the
+    exact case pixel size, not the content box alone). There used to be a
+    `TRAY_SCALE`/`TRAY_MAX_PX` step that scaled every tile down to fit a
+    compact sidebar column; it's gone, on explicit instruction — tray
+    size must equal case size, full stop, not "proportional to it by one
+    constant." One structural consequence of that: the tray column is now
+    routinely taller than the case (the motherboard's own tile is as
+    tall as its real on-screen footprint, ~540px), so `.buildArea` needs
+    `align-items:flex-start` — without it, flexbox's default
+    `align-items:stretch` stretches the case to match the taller tray
+    column, which doesn't just look wrong, it **breaks `CASE_REF_W/H`'s
+    own live measurement** (see below) by inflating the very box that
+    measurement reads from.
+  - **RAM is the one deliberate exception to "tray size is exactly the
+    real case size," on explicit request, for legibility.** `icon('ram')`
+    is drawn lying down (the standard wide "stick of RAM" teaching
+    picture, pins along the bottom) but RAM's real slot is a tall narrow
+    upright one — so `tileDisplaySize(id)` swaps width/height for RAM's
+    *tile* (not the icon) so the box matches the icon's natural
+    orientation instead of rotating the icon 90° to cram it into a box
+    shaped for the other orientation (the old approach: see the removed
+    `.rotated` CSS class and `setIdentifyIcon`'s old `w,h` params in git
+    history). Swapped, RAM's real footprint is still ~9:1 (244×27) — too
+    thin a strip to read as anything, pins included — so
+    `RAM_SHORT_SIDE_BOOST` (3) multiplies just the short side on top of
+    the swap. Every other part still gets the literal, unmodified real
+    size; this is the one named, documented exception, not a quiet
+    regression back to the old per-part tray tuning this file spent a
+    whole session removing.
+  - **`CASE_REF_W`/`CASE_REF_H` are read live from `caseInner`'s own
+    `getBoundingClientRect()`**, not a hardcoded guess at `caseOuter`'s
+    CSS width. They used to be `540` / `540*8/7` — a hand-copy of
+    `caseOuter`'s declared CSS `width:540px`, which doesn't account for
+    `caseOuter`'s own 14px padding + 4px border (both sides) eating 36px
+    out of that before `caseInner` — and therefore every `slot` — ever
+    sees it. That overstated every part's "real" pixel size by ~7%,
+    tray tiles included, in a way that's invisible until you actually
+    measure a tray tile against its placed case counterpart (the formula
+    looked internally consistent; it just wasn't consistent with the
+    page). The fix removes the second number entirely — there's exactly
+    one definition of "how big the case's content area is" (the CSS),
+    and both the real case rendering and the tray both read it, instead
+    of one reading the CSS and the other reading a copy of it that could
+    (and did) drift.
+  - Old history, kept for context: a string of increasingly complicated
+    tray-sizing fixes — scale-from-smallest (blew up the motherboard), a
     floor-boost for thin parts (blew up RAM's height instead), a clamp
-    against the motherboard's own tile size (let other tiles tie it
-    exactly), a margin on that clamp (still too subtle a gap at actual
-    tile scale), then a `trayFootprint` escape hatch to hand-tune
-    individual parts around all of the above — each fixed the specific
-    comparison it targeted and broke, or left broken, a different one,
-    because each was its own extra rule with its own blind spot. All of
-    it is gone. **A tile's size in the tray is its real size in the case,
-    scaled down by one constant — nothing else.** If two parts are 73%
-    apart in the case, they're 73% apart in the tray, exactly, every
-    time, with no constant anywhere that can quietly let that slip. The
-    corollary: **if a tray comparison looks wrong, the fix is to change
-    that part's `slot` — its real footprint in the case — never to add a
-    tray-only number.** `slot` already does exactly this job for every
-    other "part X should look bigger" request in this file (PSU's `slot`
-    was deliberately enlarged from `{28,24}` to `{31,27}` for this exact
-    reason, and that's still how it's sized). The one accepted
-    consequence: the fan's `slot` is padded out well past a literal
-    120mm fan so its mount holes clear the CPU socket (see the fan's own
-    comment), and since that padded box is also what the fan's icon
-    actually stretches to fill once placed, the tray now shows the fan
-    as bigger than the PSU — which is, by this rule, correct: that
-    padded box **is** how big the fan really appears once built, not an
-    artifact to hide from the tray.
+    against the motherboard's own tile size, a margin on that clamp, a
+    `trayFootprint` escape hatch to hand-tune individual parts — each
+    fixed the specific comparison it targeted and broke, or left broken,
+    a different one, because each was its own extra rule with its own
+    blind spot. None of that is back. The corollary still holds: **if a
+    tray comparison looks wrong, the fix is to change that part's
+    `slot`** — its real footprint in the case — **never to add a
+    tray-only number.** PSU's `slot` was deliberately enlarged from
+    `{28,24}` to `{31,27}` for exactly this reason, and the fan's `slot`
+    pads the CPU socket out just far enough for its mount holes to clear
+    it (see the fan's own comment) — tightened to the smallest padding
+    that still clears the holes with a visible margin.
 
 ## Testing: how we verify
 
@@ -655,11 +734,6 @@ that audit *before* the next round of layout changes here, not after.
 
 ## Ideas to explore next time (not requested yet — check before building)
 
-- **Revisit the fan-vs-PSU tray size question.** See "Current status"
-  above — not a bug under the current rule, but flagged as worth a
-  deliberate look. If it needs fixing, the lever is the fan's real
-  on-board footprint (currently padded for CPU mount-hole clearance),
-  not a new tray-only exception.
 - **Data-movement lights, beyond the existing power-on trace pulse.**
   Still open. The current `tracePulse` (CPU<->RAM, NIC<->CPU, SATA<->CPU,
   plus the physical power/data cables — see "Design requirements and
@@ -668,7 +742,21 @@ that audit *before* the next round of layout changes here, not after.
   during gameplay (e.g. "lights travel down the cable the instant the
   HDD is placed," independent of whether the build is finished). Whether
   that's wanted, and whether it's the same mechanism extended or
-  something new, is still open.
+  something new, is still open. **Tried and reverted once already, same
+  session, never committed**: a per-pair "live" variant (each
+  trace/cable pulsing as soon as its own two endpoints were placed,
+  scoped to `.caseInner` so the tray tile's and quiz modal's own copies
+  of the motherboard picture didn't also start pulsing) was built,
+  worked correctly, and was then explicitly asked to be reverted back to
+  the single 7/7 pulse — not a bug, a decision, just not what was
+  wanted on reflection. Worth noting for next time: `ComponentIcons.
+  motherboard()` took a second `traceActive` param (parallel array to
+  `tracePaths`), `cableOverlay()`'s cable paths got a `live` class
+  (always true the moment a cable is drawn, since a cable only exists
+  once both its endpoints do), and the CSS swapped `.caseOuter.powered
+  .tracePulse`/`.cablePowerInner`/`.cableData` for `.caseInner
+  .tracePulse.live`/`.cablePowerInner.live`/`.cableData.live` — all of
+  that is gone now, not just disabled.
 - **Semi-automate the regression checklist.** Right now it's ~10 manual
   `browser.mjs eval`/`screenshot` calls typed out by hand each session.
   A small script in `tools/browser/` (e.g.

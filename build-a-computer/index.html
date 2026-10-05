@@ -92,6 +92,7 @@ h2{
     display:flex;
     flex-wrap:wrap;
     justify-content:center;
+    align-items:flex-start;
     gap:22px;
     max-width:1100px;
     margin:16px auto;
@@ -439,13 +440,6 @@ h2{
     display:block;
 }
 
-.tileIcon.rotated, .looseItem .iconWrap.rotated{
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%) rotate(90deg);
-}
-
 .tileBadge{
     position:absolute;
     top:3px;
@@ -752,18 +746,8 @@ function boardIcon(name){
     return icon(name);
 }
 
-// RAM's identify picture is drawn lying down (pins along a long side) but
-// its tray/loose footprint is tall (it mirrors how it stands on the
-// board) — rotate the picture upright so it fills that tall box instead
-// of shrinking to a sliver. `el` must be a positioned (relative/absolute)
-// ancestor for the rotated box to centre against.
-function setIdentifyIcon(el, id, w, h){
+function setIdentifyIcon(el, id){
     el.innerHTML = icon(id);
-    if(id === 'ram'){
-        el.classList.add('rotated');
-        el.style.width = h + 'px';
-        el.style.height = w + 'px';
-    }
 }
 
 function socketIcon(name){
@@ -809,12 +793,14 @@ const components = [
         def:"This sits on top of the CPU and helps keep it cool, because processing instructions so quickly makes it work hard and get hot!",
         // Must fully contain the CPU's slot (see ON_BOARD z-index notes
         // below) AND leave the four mount holes — derived from this box's
-        // own corners — clear of the CPU socket on every side. The old
-        // box was only ~3% bigger than the CPU on most sides and barely
-        // bigger at all on the bottom, so the bottom two holes landed
-        // inside the CPU socket instead of outside it. This pads the CPU
-        // slot evenly (~6%) on all four sides instead.
-        slot:{left:4.5,top:6,width:35.5,height:32}
+        // own corners, at a fixed 7/64 fraction of it — clear of the CPU
+        // socket on every side. Padding the CPU slot by 4 on all sides is
+        // the tightest value (above the ~3.3/~2.8 horizontal/vertical
+        // minimum) that still clears the holes with a visible margin;
+        // tray tile size is this box's size directly (tileSize() has no
+        // separate tray-only path), so this also brings the fan's tray
+        // tile down to ~match the PSU's.
+        slot:{left:6.5,top:8,width:31.5,height:28}
     },
     {
         id:'ram',
@@ -906,21 +892,77 @@ let draggedId = null;
 // happened to allow. There is nothing left to tune per-part; if a
 // comparison still looks wrong, the fix is to change that part's `slot`
 // (its real case footprint), not to add another tray-only exception.
-const CASE_REF_W = 540;
-const CASE_REF_H = CASE_REF_W * 8 / 7;
+// Read the case's actual content area directly from the live element
+// rather than hand-copying caseOuter's CSS width (540px, aspect-ratio
+// 7/8) here: caseOuter's own padding+border (14px+4px, both sides) eat
+// 36px out of that 540 before caseInner — and every slot inside it —
+// ever sees it, so a hardcoded "540" overstated every part's real size
+// by ~7%, tray tiles included. This way there's one definition of "how
+// big the case actually is" (the CSS), not two that can drift apart.
+const _caseInnerRect = document.getElementById('caseInner').getBoundingClientRect();
+const CASE_REF_W = _caseInnerRect.width;
+const CASE_REF_H = _caseInnerRect.height;
 
 function realSlotSize(id){
     const s = byId[id].slot;
     return { w: s.width / 100 * CASE_REF_W, h: s.height / 100 * CASE_REF_H };
 }
 
-const TRAY_MAX_PX = 170;
-const _allSlotDims = components.flatMap(c=>{ const r = realSlotSize(c.id); return [r.w, r.h]; });
-const TRAY_SCALE = TRAY_MAX_PX / Math.max(..._allSlotDims);
+// .tile's own border+padding (2px + 6px, both sides) add 16px that
+// style.width/height (content-box) doesn't account for, so it's
+// subtracted here before assigning style.width/height — the rendered
+// outer box (content+chrome) then comes out to exactly realSlotSize(id),
+// in the same CASE_REF_W/H pixel units the case itself is built in. A
+// tray tile is the real case size, full stop — no down-scale constant.
+const TILE_CHROME_PX = 16;
 
 function tileSize(id){
     const r = realSlotSize(id);
-    return { w: Math.round(r.w * TRAY_SCALE), h: Math.round(r.h * TRAY_SCALE) };
+    return {
+        w: Math.max(1, Math.round(r.w - TILE_CHROME_PX)),
+        h: Math.max(1, Math.round(r.h - TILE_CHROME_PX))
+    };
+}
+
+// RAM's identify picture (icon('ram')) is drawn lying down — a wide,
+// short rectangle with pins along the bottom, the standard "stick of
+// RAM" teaching image — but its real slot in the case is a tall, narrow
+// upright one (that's genuinely how it's mounted). Everywhere else,
+// tileSize() IS the box a part's tray tile gets; for RAM specifically,
+// width and height are swapped for the TILE itself so the box matches
+// the icon's own natural orientation instead of the icon being rotated
+// 90° to cram it into a box shaped for the other orientation.
+//
+// Even swapped, RAM's real footprint is ~9:1 (244×27) — too thin a
+// strip to read as anything once it's that small, pins included. This
+// is the one deliberate, explicit exception to "tray size is exactly
+// the real case size": the short side is tripled so the stick is thick
+// enough to actually look like RAM, at the cost of no longer being a
+// literal scale copy of the slot. Every other part keeps the literal
+// rule; this one trades it for legibility, on request.
+const RAM_SHORT_SIDE_BOOST = 3;
+
+// NIC's tray tile read as the wrong size next to the rest of the tray —
+// a second named, on-request exception alongside RAM's. Applied before
+// TRAY_SHRINK, same as RAM's boost, so it's 25% on top of NIC's real
+// size, not 25% on top of the already-shrunk tray tile.
+const NIC_BOOST = 2;
+
+// Tray-only shrink, applied uniformly to every part after everything
+// else above (the real-size match, RAM's swap+boost, NIC's boost) — a
+// flat 2/3 on top, not a replacement for any of it. Case rendering is
+// untouched.
+const TRAY_SHRINK = 2 / 3;
+
+function tileDisplaySize(id){
+    const s = tileSize(id);
+    let d = s;
+    if(id === 'ram') d = { w: s.h, h: s.w * RAM_SHORT_SIDE_BOOST };
+    else if(id === 'nic') d = { w: s.w * NIC_BOOST, h: s.h * NIC_BOOST };
+    return {
+        w: Math.max(1, Math.round(d.w * TRAY_SHRINK)),
+        h: Math.max(1, Math.round(d.h * TRAY_SHRINK))
+    };
 }
 
 function isOut(id){
@@ -1228,7 +1270,7 @@ function refreshCase(){
     Object.keys(loose).forEach(id=>{
         const comp = byId[id];
         const pos = loose[id];
-        const size = tileSize(id);
+        const size = tileDisplaySize(id);
 
         const el = document.createElement('div');
         el.className = 'looseItem';
@@ -1243,7 +1285,7 @@ function refreshCase(){
 
         const iconWrap = document.createElement('div');
         iconWrap.className = 'iconWrap';
-        setIdentifyIcon(iconWrap, id, Math.round(size.w * 0.7), Math.round(size.h * 0.7));
+        setIdentifyIcon(iconWrap, id);
         el.appendChild(iconWrap);
 
         const removeBtn = document.createElement('button');
@@ -1384,7 +1426,7 @@ function buildTray(){
         tile.draggable = true;
         tile.title = 'Part ' + (tileOrder.indexOf(id) + 1);
 
-        const size = tileSize(id);
+        const size = tileDisplaySize(id);
         tile.style.width = size.w + 'px';
         tile.style.height = size.h + 'px';
         tile.style.setProperty('--accent-color', FILL_COLORS[id] || '#3a5686');
@@ -1395,7 +1437,7 @@ function buildTray(){
 
         const iconDiv = document.createElement('div');
         iconDiv.className = 'tileIcon';
-        setIdentifyIcon(iconDiv, id, size.w, size.h);
+        setIdentifyIcon(iconDiv, id);
 
         const badge = document.createElement('div');
         badge.className = 'tileBadge';
