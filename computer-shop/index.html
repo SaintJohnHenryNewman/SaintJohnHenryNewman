@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JHN Computer Shop</title>
+
+<style>
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial, sans-serif;
+    background:#0b2341;
+    color:white;
+    margin:0;
+    padding:12px;
+}
+
+.header{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:15px;
+    margin-bottom:8px;
+    text-align:center;
+}
+
+.logo{
+    width:55px;
+    height:auto;
+}
+
+h1{
+    color:#ffffff;
+    margin:0;
+    font-size:1.7rem;
+}
+
+h2.sub{
+    color:#d4af37;
+    margin:2px 0 0 0;
+    font-size:1rem;
+    font-weight:normal;
+}
+
+.view{
+    display:none;
+    max-width:1100px;
+    margin:0 auto;
+}
+
+.view.active{
+    display:block;
+}
+
+/* ---- Scenario picker ---- */
+
+.scenarioIntro{
+    max-width:800px;
+    margin:10px auto 20px auto;
+    background:#102d52;
+    border:1px solid #d4af37;
+    padding:12px 18px;
+    border-radius:8px;
+    text-align:center;
+    font-size:0.95rem;
+}
+
+.scenarioGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:16px;
+}
+
+.scenarioCard{
+    background:#102d52;
+    border:2px solid #3a5686;
+    border-radius:12px;
+    padding:16px;
+    text-align:center;
+    cursor:pointer;
+    transition:transform 0.15s ease, border-color 0.15s ease;
+}
+
+.scenarioCard:hover{
+    transform:translateY(-3px);
+    border-color:#ffd60a;
+}
+
+.scenarioEmoji{
+    font-size:2.4rem;
+}
+
+.scenarioCard h3{
+    color:#ffd60a;
+    margin:8px 0 4px 0;
+    font-size:1.1rem;
+}
+
+.scenarioBudget{
+    color:#70e000;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+.scenarioBlurb{
+    font-size:0.82rem;
+    color:#cfe0ff;
+    text-align:left;
+}
+
+.startBtn{
+    margin-top:12px;
+    background:#0077b6;
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:8px 16px;
+    cursor:pointer;
+    font-size:0.9rem;
+}
+
+.startBtn:hover{
+    background:#0096c7;
+}
+
+/* ---- Shop floor ---- */
+
+.shopTopBar{
+    position:sticky;
+    top:0;
+    background:#0b2341;
+    padding:8px 0 12px 0;
+    z-index:20;
+    border-bottom:1px solid #2c4b76;
+}
+
+.customerCard{
+    background:#102d52;
+    border:1px solid #d4af37;
+    border-radius:10px;
+    padding:10px 16px;
+    max-width:1100px;
+    margin:0 auto 10px auto;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.customerCard .who{
+    text-align:left;
+    font-size:0.85rem;
+    max-width:640px;
+}
+
+.customerCard .who strong{
+    color:#ffd60a;
+    font-size:1rem;
+}
+
+.changeLink{
+    background:none;
+    border:1px solid #3a5686;
+    color:#90e0ef;
+    border-radius:6px;
+    padding:6px 10px;
+    font-size:0.78rem;
+    cursor:pointer;
+}
+
+.changeLink:hover{
+    border-color:#ffd60a;
+}
+
+.trolleyBar{
+    max-width:1100px;
+    margin:0 auto;
+    background:#0d1b2a;
+    border:1px solid #3a5686;
+    border-radius:10px;
+    padding:8px 14px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+}
+
+.trolleyList{
+    font-size:0.78rem;
+    color:#cfe0ff;
+    flex:1;
+    min-width:220px;
+}
+
+.trolleyList span.miss{
+    color:#5a6e94;
+}
+
+.budgetTrack{
+    flex:1;
+    min-width:180px;
+}
+
+.budgetNums{
+    font-size:0.8rem;
+    margin-bottom:4px;
+    display:flex;
+    justify-content:space-between;
+}
+
+.budgetBar{
+    background:#1a2b45;
+    border:1px solid #3a5686;
+    border-radius:20px;
+    height:14px;
+    overflow:hidden;
+}
+
+.budgetFill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#38b000,#70e000);
+    transition:width 0.3s ease, background 0.3s ease;
+}
+
+.budgetFill.over{
+    background:linear-gradient(90deg,#c1121f,#e63946);
+}
+
+button.buildBtn{
+    background:#38b000;
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:10px 20px;
+    font-size:0.95rem;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+button.buildBtn:disabled{
+    background:#3a4250;
+    color:#7d90b8;
+    cursor:not-allowed;
+}
+
+/* ---- Aisles ---- */
+
+.aisle{
+    margin:22px auto 0 auto;
+    max-width:1100px;
+}
+
+.aisleHeader{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:8px;
+}
+
+.aisleHeader h3{
+    color:#ffd60a;
+    margin:0;
+    font-size:1.05rem;
+}
+
+.aisleHeader .picked{
+    font-size:0.75rem;
+    color:#70e000;
+}
+
+.shelf{
+    background:linear-gradient(180deg, rgba(120,80,40,0.18), rgba(120,80,40,0.05));
+    border-top:6px solid #7a5230;
+    border-bottom:3px solid #4a331f;
+    border-radius:4px;
+    padding:14px 10px 10px 10px;
+    display:flex;
+    gap:12px;
+    overflow-x:auto;
+}
+
+.itemCard{
+    background:#102d52;
+    border:2px solid #3a5686;
+    border-radius:10px;
+    padding:10px;
+    min-width:150px;
+    max-width:150px;
+    flex:0 0 auto;
+    cursor:pointer;
+    text-align:center;
+    transition:transform 0.15s ease, border-color 0.15s ease;
+}
+
+.itemCard:hover{
+    transform:translateY(-2px);
+    border-color:#ffd60a;
+}
+
+.itemCard.selected{
+    border-color:#38b000;
+    box-shadow:0 0 0 2px #38b000;
+    background:#123018;
+}
+
+.itemIcon{
+    width:100%;
+    height:60px;
+}
+
+.itemName{
+    font-size:0.78rem;
+    color:white;
+    margin-top:4px;
+    min-height:32px;
+}
+
+.itemSpec{
+    font-size:0.68rem;
+    color:#90e0ef;
+    margin-top:2px;
+}
+
+.priceTag{
+    display:inline-block;
+    margin-top:6px;
+    background:#ffd60a;
+    color:#0d1b2a;
+    font-weight:bold;
+    font-size:0.78rem;
+    padding:2px 8px;
+    border-radius:10px;
+}
+
+/* ---- Report card ---- */
+
+.reportCard{
+    background:#102d52;
+    border:2px solid #d4af37;
+    border-radius:14px;
+    padding:20px;
+    max-width:800px;
+    margin:16px auto;
+}
+
+.reportCard h2{
+    color:#ffd60a;
+    margin-top:0;
+}
+
+.overallVerdict{
+    font-size:1.05rem;
+    margin-bottom:14px;
+    padding:10px;
+    border-radius:8px;
+}
+
+.overallVerdict.great{
+    background:#12351a;
+    border:1px solid #38b000;
+}
+
+.overallVerdict.ok{
+    background:#3a2f10;
+    border:1px solid #ffd60a;
+}
+
+.overallVerdict.poor{
+    background:#3a1414;
+    border:1px solid #c1121f;
+}
+
+.feedbackRow{
+    display:flex;
+    gap:12px;
+    align-items:flex-start;
+    padding:10px 0;
+    border-bottom:1px solid #24406b;
+    text-align:left;
+}
+
+.feedbackRow:last-of-type{
+    border-bottom:none;
+}
+
+.verdictIcon{
+    font-size:1.4rem;
+    flex:0 0 auto;
+    width:28px;
+}
+
+.feedbackText strong{
+    color:#ffd60a;
+}
+
+.feedbackText{
+    font-size:0.88rem;
+    color:#e6eefc;
+}
+
+.budgetNote{
+    margin-top:14px;
+    font-size:0.85rem;
+    color:#cfe0ff;
+    background:#0d1b2a;
+    border:1px solid #3a5686;
+    border-radius:8px;
+    padding:10px;
+}
+
+.actions{
+    margin-top:18px;
+    text-align:center;
+}
+
+button.action{
+    background:#0077b6;
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:10px 18px;
+    font-size:0.9rem;
+    cursor:pointer;
+    margin:4px;
+}
+
+button.action:hover{
+    background:#0096c7;
+}
+
+button.action.secondary{
+    background:#3a5686;
+}
+
+button.action.secondary:hover{
+    background:#4a6a9e;
+}
+
+.backLink{
+    display:block;
+    text-align:center;
+    margin:18px auto 4px auto;
+    color:#90e0ef;
+    font-size:0.85rem;
+    text-decoration:none;
+}
+
+.backLink:hover{
+    text-decoration:underline;
+}
+
+</style>
+</head>
+<body>
+
+<div class="header">
+    <img src="jhn_logo.jpg" class="logo">
+    <div>
+        <h1>JHN Computer Shop</h1>
+        <h2 class="sub">Build the right computer for the job &mdash; on budget</h2>
+    </div>
+    <img src="jhn_logo.jpg" class="logo">
+</div>
+
+<!-- SCENARIO PICKER -->
+<div class="view active" id="view-pick">
+
+    <div class="scenarioIntro">
+        Five customers are coming into the shop today. Read what each one needs, then build them
+        a computer from the shelves that suits the job &mdash; without going over their budget.
+    </div>
+
+    <div class="scenarioGrid" id="scenarioGrid"></div>
+
+</div>
+
+<!-- SHOP FLOOR -->
+<div class="view" id="view-shop">
+
+    <div class="shopTopBar">
+
+        <div class="customerCard">
+            <div class="who">
+                <strong id="shopCustomerName"></strong><br>
+                <span id="shopCustomerBlurb"></span>
+            </div>
+            <button class="changeLink" onclick="goToPicker()">Change Customer</button>
+        </div>
+
+        <div class="trolleyBar">
+            <div class="trolleyList" id="trolleyList"></div>
+            <div class="budgetTrack">
+                <div class="budgetNums">
+                    <span id="budgetSpentLabel">Spent: &pound;0</span>
+                    <span id="budgetTotalLabel">Budget: &pound;0</span>
+                </div>
+                <div class="budgetBar"><div class="budgetFill" id="budgetFill"></div></div>
+            </div>
+            <button class="buildBtn" id="buildBtn" onclick="buildComputer()" disabled>Build It!</button>
+        </div>
+
+    </div>
+
+    <div id="aisleContainer"></div>
+
+</div>
+
+<!-- REPORT CARD -->
+<div class="view" id="view-report">
+
+    <div class="reportCard">
+        <h2 id="reportTitle">Build Report</h2>
+        <div class="overallVerdict" id="overallVerdict"></div>
+        <div id="feedbackRows"></div>
+        <div class="budgetNote" id="budgetNote"></div>
+
+        <div class="actions">
+            <button class="action secondary" onclick="backToShop()">Adjust This Build</button>
+            <button class="action" onclick="goToPicker()">Try Another Customer</button>
+        </div>
+    </div>
+
+</div>
+
+<a class="backLink" href="../fetch_decode_execute/teacher_fde.html">&larr; Back to KS3 Computing tasks</a>
+
+<script src="../shared/component-icons.js"></script>
+<script>
+
+const BASE_UNIT_COST = 90;
+const TIER_COLORS = {1:'#8a9096', 2:'#4a90d9', 3:'#9b59d0', 4:'#ffd60a'};
+
+function cpuIcon(color){ return ComponentIcons.cpu(color); }
+function ramIcon(color){ return ComponentIcons.ram(color); }
+function storageIcon(type,color){ return ComponentIcons.storage(type,color); }
+function inputIcon(kind,color){ return kind==='tablet' ? ComponentIcons.inputTablet(color) : ComponentIcons.inputBasic(color); }
+function outputIcon(color){ return ComponentIcons.monitor(color); }
+
+const CPUS = [
+    {id:'cpu1', name:'Value Dual-Core', tier:1, price:45, spec:'2 cores', blurb:'Basic processing power.'},
+    {id:'cpu2', name:'Mid-Range Quad-Core', tier:2, price:95, spec:'4 cores', blurb:'A solid all-rounder.'},
+    {id:'cpu3', name:'Performance Hex-Core', tier:3, price:175, spec:'6 cores', blurb:'Handles demanding tasks.'},
+    {id:'cpu4', name:'Elite Octa-Core', tier:4, price:310, spec:'8 cores', blurb:'Top-tier processing power.'}
+];
+
+const RAMS = [
+    {id:'ram1', name:'4GB Memory Kit', tier:1, price:18, spec:'4GB', blurb:'Only room for a little at once.'},
+    {id:'ram2', name:'8GB Memory Kit', tier:2, price:34, spec:'8GB', blurb:'Comfortable everyday multitasking.'},
+    {id:'ram3', name:'16GB Memory Kit', tier:3, price:62, spec:'16GB', blurb:'Smooth with several programs open.'},
+    {id:'ram4', name:'32GB Memory Kit', tier:4, price:118, spec:'32GB', blurb:'Heavy multitasking with ease.'}
+];
+
+const STORAGES = [
+    {id:'hdd500', name:'500GB Hard Disk', type:'HDD', capacity:500, speedTier:1, price:30, blurb:'Cheap, but slow to access files.'},
+    {id:'hdd2tb', name:'2TB Hard Disk', type:'HDD', capacity:2000, speedTier:1, price:58, blurb:'Huge cheap storage, still slow.'},
+    {id:'ssd256', name:'256GB SSD', type:'SSD', capacity:256, speedTier:3, price:42, blurb:'Fast, but fills up quickly.'},
+    {id:'ssd512', name:'512GB SSD', type:'SSD', capacity:512, speedTier:3, price:72, blurb:'Fast with a sensible amount of space.'},
+    {id:'ssd1tb', name:'1TB SSD', type:'SSD', capacity:1000, speedTier:3, price:105, blurb:'Fast with plenty of room.'},
+    {id:'ssd2tb', name:'2TB SSD', type:'SSD', capacity:2000, speedTier:3, price:185, blurb:'Fast and spacious.'}
+];
+
+const INPUTS = [
+    {id:'inp1', name:'Basic Keyboard & Mouse', tier:1, price:15, kind:'basic', blurb:'Does the job for typing and clicking.'},
+    {id:'inp2', name:'Ergonomic Keyboard & Mouse', tier:2, price:38, kind:'basic', blurb:'Comfortable for long sessions.'},
+    {id:'inp3', name:'Gaming Keyboard & Mouse', tier:3, price:65, kind:'basic', blurb:'Fast, precise response.'},
+    {id:'inp4', name:'Graphics Tablet', tier:2, price:50, kind:'tablet', blurb:'Draw directly onto the screen.'}
+];
+
+const OUTPUTS = [
+    {id:'out1', name:'19" Basic Monitor', tier:1, price:55, blurb:'Shows what you need, nothing fancy.'},
+    {id:'out2', name:'24" Full HD Monitor', tier:2, price:95, blurb:'Crisp, comfortable everyday display.'},
+    {id:'out3', name:'27" High-Refresh Monitor', tier:3, price:230, blurb:'Super smooth fast-moving visuals.'},
+    {id:'out4', name:'27" 4K Pro Monitor', tier:4, price:340, blurb:'Extremely sharp, colour-accurate.'}
+];
+
+const CATEGORIES = [
+    {key:'cpu', label:'CPUs', items:CPUS, icon:(item)=>cpuIcon(TIER_COLORS[item.tier])},
+    {key:'ram', label:'Memory (RAM)', items:RAMS, icon:(item)=>ramIcon(TIER_COLORS[item.tier])},
+    {key:'storage', label:'Storage', items:STORAGES, icon:(item)=>storageIcon(item.type, item.type==='SSD' ? '#2e8b57' : '#7a828c')},
+    {key:'input', label:'Input Devices', items:INPUTS, icon:(item)=>inputIcon(item.kind, item.kind==='tablet' ? '#9b59d0' : TIER_COLORS[item.tier])},
+    {key:'output', label:'Monitors', items:OUTPUTS, icon:(item)=>outputIcon(TIER_COLORS[item.tier])}
+];
+
+const SCENARIOS = [
+
+    {
+        id:'family',
+        emoji:'\u{1F46A}',
+        title:'The Sharma Family',
+        budget:450,
+        blurb:"Wants a computer for browsing the web, video calls with relatives, online shopping and the kids' homework. Nothing too demanding, but it needs to feel responsive for everyday use.",
+        need:{
+            cpuMin:2, cpuNeed:'handle everyday browsing and homework without freezing',
+            ramMin:2, ramNeed:'keep a few tabs and programs open smoothly',
+            storageSpeedMin:1, storageCapacityMin:250,
+            storageNeed:'load files and the desktop quickly, with room for family photos and documents',
+            outputMin:1, outputNeed:'see webpages and documents clearly',
+            inputMin:1, inputNeed:'type and click comfortably'
+        }
+    },
+    {
+        id:'gaming',
+        emoji:'\u{1F3AE}',
+        title:'Jordan the Gamer',
+        budget:800,
+        blurb:'A competitive online gamer who needs split-second responsiveness, smooth fast-moving visuals, and quick load times between matches.',
+        need:{
+            cpuMin:3, cpuNeed:'keep up with fast-paced competitive games',
+            ramMin:3, ramNeed:'run the game and voice chat or streaming software together smoothly',
+            storageSpeedMin:3, storageCapacityMin:500,
+            storageNeed:'load games and levels quickly',
+            outputMin:3, outputNeed:'show fast motion smoothly without blur or lag',
+            inputMin:3, inputNeed:'react instantly with no delay'
+        }
+    },
+    {
+        id:'creative',
+        emoji:'\u{1F3A5}',
+        title:'Amara, Video Editor',
+        budget:1050,
+        blurb:'Runs a small video production business, editing 4K footage and large photo files. Needs to handle huge files quickly and show colours accurately and sharply.',
+        need:{
+            cpuMin:3, cpuNeed:'process and export huge 4K video files',
+            ramMin:3, ramNeed:'edit large video and photo files without freezing',
+            storageSpeedMin:3, storageCapacityMin:1000,
+            storageNeed:'quickly load and save huge video and photo files, with room for a big media library',
+            outputMin:4, outputNeed:'show accurate, sharp colours and fine detail for editing',
+            inputMin:1, inputNeed:'work comfortably through long editing sessions',
+            idealInputId:'inp4'
+        }
+    },
+    {
+        id:'student',
+        emoji:'\u{1F393}',
+        title:'Lee, College Student',
+        budget:280,
+        blurb:'On a tight budget. Just needs something reliable for writing essays, researching online and submitting coursework — no frills.',
+        need:{
+            cpuMin:1, cpuNeed:'handle word processing and web research without frustration',
+            ramMin:2, ramNeed:'keep a few tabs and a document open at once',
+            storageSpeedMin:1, storageCapacityMin:250,
+            storageNeed:'store coursework and load programs without long waits',
+            outputMin:1, outputNeed:'read and write documents comfortably',
+            inputMin:1, inputNeed:'type essays comfortably'
+        }
+    },
+    {
+        id:'server',
+        emoji:'\u{1F3EA}',
+        title:'Riverside Bikes (Shop Server)',
+        budget:480,
+        blurb:"A small shop needs a computer to store and share files (invoices, photos, stock lists) for the whole team over the network. It runs quietly in a back office and isn't used for anything fancy — but it needs to hold a LOT of data.",
+        need:{
+            cpuMin:2, cpuNeed:'manage file requests from the team in the background',
+            ramMin:3, ramNeed:'handle several people accessing files at the same time',
+            storageSpeedMin:1, storageCapacityMin:2000,
+            storageNeed:'store a large amount of company data',
+            outputMin:1, outputNeed:'check on the server occasionally',
+            inputMin:1, inputNeed:'do basic setup and maintenance'
+        }
+    }
+
+];
+
+let currentScenario = null;
+let selection = {};
+
+function money(n){
+    return '£' + n.toLocaleString();
+}
+
+function renderScenarioPicker(){
+    const grid = document.getElementById('scenarioGrid');
+    grid.innerHTML = '';
+    SCENARIOS.forEach(sc=>{
+        const card = document.createElement('div');
+        card.className = 'scenarioCard';
+        card.addEventListener('click', ()=>startScenario(sc.id));
+        card.innerHTML = `
+            <div class="scenarioEmoji">${sc.emoji}</div>
+            <h3>${sc.title}</h3>
+            <div class="scenarioBudget">Budget: ${money(sc.budget)}</div>
+            <div class="scenarioBlurb">${sc.blurb}</div>
+            <button class="startBtn">Start Build</button>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function showView(id){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0,0);
+}
+
+function goToPicker(){
+    currentScenario = null;
+    selection = {};
+    showView('view-pick');
+}
+
+function startScenario(id){
+    currentScenario = SCENARIOS.find(s=>s.id===id);
+    selection = {};
+    document.getElementById('shopCustomerName').textContent = currentScenario.emoji + ' ' + currentScenario.title;
+    document.getElementById('shopCustomerBlurb').textContent = currentScenario.blurb + ' Budget: ' + money(currentScenario.budget) + '.';
+    renderAisles();
+    updateTrolley();
+    showView('view-shop');
+}
+
+function renderAisles(){
+    const container = document.getElementById('aisleContainer');
+    container.innerHTML = '';
+
+    CATEGORIES.forEach(cat=>{
+        const aisle = document.createElement('div');
+        aisle.className = 'aisle';
+
+        const header = document.createElement('div');
+        header.className = 'aisleHeader';
+        header.innerHTML = `<h3>${cat.label}</h3><span class="picked" id="picked-${cat.key}"></span>`;
+        aisle.appendChild(header);
+
+        const shelf = document.createElement('div');
+        shelf.className = 'shelf';
+
+        cat.items.forEach(item=>{
+            const card = document.createElement('div');
+            card.className = 'itemCard';
+            card.id = 'item-' + cat.key + '-' + item.id;
+            card.addEventListener('click', ()=>selectItem(cat.key, item));
+
+            const specLine = cat.key === 'storage'
+                ? `${item.type} &middot; ${item.capacity >= 1000 ? (item.capacity/1000)+'TB' : item.capacity+'GB'}`
+                : (item.spec || '');
+
+            card.innerHTML = `
+                <div class="itemIcon">${cat.icon(item)}</div>
+                <div class="itemName">${item.name}</div>
+                <div class="itemSpec">${specLine}</div>
+                <div class="priceTag">${money(item.price)}</div>
+            `;
+            shelf.appendChild(card);
+        });
+
+        aisle.appendChild(shelf);
+        container.appendChild(aisle);
+    });
+}
+
+function selectItem(catKey, item){
+    selection[catKey] = item;
+    refreshShelfHighlight();
+    updateTrolley();
+}
+
+function refreshShelfHighlight(){
+    CATEGORIES.forEach(cat=>{
+        cat.items.forEach(item=>{
+            const el = document.getElementById('item-' + cat.key + '-' + item.id);
+            el.classList.toggle('selected', !!(selection[cat.key] && selection[cat.key].id === item.id));
+        });
+        const pickedLabel = document.getElementById('picked-' + cat.key);
+        pickedLabel.textContent = selection[cat.key] ? ('Selected: ' + selection[cat.key].name) : '';
+    });
+}
+
+function currentTotal(){
+    let total = BASE_UNIT_COST;
+    CATEGORIES.forEach(cat=>{
+        if(selection[cat.key]) total += selection[cat.key].price;
+    });
+    return total;
+}
+
+function updateTrolley(){
+    const total = currentTotal();
+    const budget = currentScenario.budget;
+
+    const listParts = ['Base tower ' + money(BASE_UNIT_COST)];
+    CATEGORIES.forEach(cat=>{
+        if(selection[cat.key]){
+            listParts.push(selection[cat.key].name + ' ' + money(selection[cat.key].price));
+        } else {
+            listParts.push('<span class="miss">' + cat.label.replace(/s$/,'') + ' not chosen</span>');
+        }
+    });
+    document.getElementById('trolleyList').innerHTML = listParts.join(' &middot; ');
+
+    document.getElementById('budgetSpentLabel').textContent = 'Spent: ' + money(total);
+    document.getElementById('budgetTotalLabel').textContent = 'Budget: ' + money(budget);
+
+    const pct = Math.min(100, Math.round((total/budget)*100));
+    const fill = document.getElementById('budgetFill');
+    fill.style.width = pct + '%';
+    fill.classList.toggle('over', total > budget);
+
+    const allChosen = CATEGORIES.every(cat=>!!selection[cat.key]);
+    document.getElementById('buildBtn').disabled = !allChosen || total > budget;
+
+    refreshShelfHighlight();
+}
+
+function backToShop(){
+    showView('view-shop');
+}
+
+function tierVerdict(chosenTier, minTier){
+    if(chosenTier < minTier) return 'bad';
+    if(chosenTier >= minTier + 2) return 'overkill';
+    return 'good';
+}
+
+function verdictIcon(v){
+    if(v==='good') return '✅';
+    if(v==='overkill') return '⚠️';
+    return '❌';
+}
+
+function buildComputer(){
+    const need = currentScenario.need;
+    const rows = [];
+    let badCount = 0, overkillCount = 0;
+
+    function pushRow(label, verdict, text){
+        if(verdict==='bad') badCount++;
+        if(verdict==='overkill') overkillCount++;
+        rows.push({label, verdict, text});
+    }
+
+    const cpu = selection.cpu;
+    const cpuV = tierVerdict(cpu.tier, need.cpuMin);
+    pushRow('CPU', cpuV,
+        cpuV==='bad' ? `The ${cpu.name} isn't quite powerful enough to ${need.cpuNeed} — this build may feel slow or frustrating.`
+        : cpuV==='overkill' ? `The ${cpu.name} is more powerful than needed to ${need.cpuNeed}. Good performance, but you overspent here — that money could upgrade a weaker part instead.`
+        : `The ${cpu.name} is a great match — plenty capable to ${need.cpuNeed}.`
+    );
+
+    const ram = selection.ram;
+    const ramV = tierVerdict(ram.tier, need.ramMin);
+    pushRow('Memory (RAM)', ramV,
+        ramV==='bad' ? `${ram.name} isn't enough to ${need.ramNeed} — expect slowdowns when several things are running.`
+        : ramV==='overkill' ? `${ram.name} is more than needed to ${need.ramNeed}. Fine, but you could have spent less here.`
+        : `${ram.name} is a solid choice — enough to ${need.ramNeed}.`
+    );
+
+    const storage = selection.storage;
+    let storageV = 'good';
+    let storageText = `The ${storage.name} suits this build well — enough speed and space to ${need.storageNeed}.`;
+    if(storage.speedTier < need.storageSpeedMin){
+        storageV = 'bad';
+        storageText = `The ${storage.name} is a hard disk drive, which is too slow to ${need.storageNeed}. An SSD would make a big difference here.`;
+    } else if(storage.capacity < need.storageCapacityMin){
+        storageV = 'bad';
+        storageText = `The ${storage.name} doesn't have enough space to ${need.storageNeed}.`;
+    } else if(need.storageSpeedMin===1 && storage.type==='SSD' && storage.capacity < need.storageCapacityMin*1.5){
+        storageV = 'overkill';
+        storageText = `The ${storage.name} is fast, but for this job storage space matters more than speed — a bigger hard disk would give better value to ${need.storageNeed}.`;
+    } else if(storage.capacity >= need.storageCapacityMin*3){
+        storageV = 'overkill';
+        storageText = `The ${storage.name} has far more space than needed to ${need.storageNeed} right now — you paid for capacity that won't be used for a while.`;
+    }
+    pushRow('Storage', storageV, storageText);
+
+    const output = selection.output;
+    const outputV = tierVerdict(output.tier, need.outputMin);
+    pushRow('Monitor', outputV,
+        outputV==='bad' ? `The ${output.name} isn't good enough to ${need.outputNeed}.`
+        : outputV==='overkill' ? `The ${output.name} is more monitor than needed to ${need.outputNeed}. Nice screen, but the budget could work harder elsewhere.`
+        : `The ${output.name} does the job well to ${need.outputNeed}.`
+    );
+
+    const input = selection.input;
+    const inputV = tierVerdict(input.tier, need.inputMin);
+    let inputText = inputV==='bad' ? `The ${input.name} isn't responsive or comfortable enough to ${need.inputNeed}.`
+        : inputV==='overkill' ? `The ${input.name} is more than needed to ${need.inputNeed}. Not a bad choice, just not necessary here.`
+        : `The ${input.name} works well to ${need.inputNeed}.`;
+    if(need.idealInputId && input.id===need.idealInputId){
+        inputText += ' Nice touch picking a graphics tablet for creative work!';
+    }
+    pushRow('Input Devices', inputV, inputText);
+
+    renderReport(rows, badCount, overkillCount);
+}
+
+function renderReport(rows, badCount, overkillCount){
+    document.getElementById('reportTitle').textContent = 'Build Report: ' + currentScenario.title;
+
+    const overallEl = document.getElementById('overallVerdict');
+    let overallClass, overallText;
+    if(badCount === 0 && overkillCount === 0){
+        overallClass = 'great';
+        overallText = '✅ Excellent build! Every part is well matched to what this customer needs.';
+    } else if(badCount === 0){
+        overallClass = 'ok';
+        overallText = '⚠️ A good, working build — but a bit of the budget was spent on more than this customer actually needs.';
+    } else {
+        overallClass = 'poor';
+        overallText = '❌ This build has some real weak spots that will let the customer down. See below for what to change.';
+    }
+    overallEl.className = 'overallVerdict ' + overallClass;
+    overallEl.textContent = overallText;
+
+    const rowsEl = document.getElementById('feedbackRows');
+    rowsEl.innerHTML = '';
+    rows.forEach(r=>{
+        const div = document.createElement('div');
+        div.className = 'feedbackRow';
+        div.innerHTML = `<div class="verdictIcon">${verdictIcon(r.verdict)}</div>
+            <div class="feedbackText"><strong>${r.label}:</strong> ${r.text}</div>`;
+        rowsEl.appendChild(div);
+    });
+
+    const total = currentTotal();
+    const budget = currentScenario.budget;
+    const remaining = budget - total;
+    const budgetNoteEl = document.getElementById('budgetNote');
+    let note = `You spent ${money(total)} of the ${money(budget)} budget, leaving ${money(remaining)} unspent.`;
+    if(remaining > budget * 0.15 && badCount > 0){
+        note += ' There was money left over that could have fixed the weak part(s) above.';
+    } else if(remaining <= budget * 0.1){
+        note += ' Nicely judged — you used almost the whole budget.';
+    }
+    budgetNoteEl.textContent = note;
+
+    showView('view-report');
+}
+
+renderScenarioPicker();
+
+</script>
+
+</body>
+</html>
